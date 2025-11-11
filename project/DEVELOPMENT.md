@@ -97,7 +97,7 @@ Complete guide for local development and testing.
 
 ```bash
 git clone <repository-url>
-cd autoakademia-aws
+cd django-aws-boilerplate
 ```
 
 ### 2. Start Local Environment
@@ -463,7 +463,7 @@ import pdb; pdb.set_trace()
 
 Attach to container:
 ```bash
-docker attach autoakademia-django-local
+docker attach myapp-django-local
 ```
 
 ---

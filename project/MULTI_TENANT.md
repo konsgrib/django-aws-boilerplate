@@ -18,12 +18,12 @@ All company-specific settings are controlled via environment variables in `scrip
 
 | Variable | Description | Example |
 |----------|-------------|---------|
-| `COMPANY_NAME` | Company identifier (lowercase, alphanumeric + hyphens) | `autoakademia`, `client-corp` |
+| `COMPANY_NAME` | Company identifier (lowercase, alphanumeric + hyphens) | `mycompany`, `clientcorp` |
 | `PROJECT_NAME` | Project name for tagging | `web`, `api` |
 | `APP_NAME` | Application directory name on EC2 | Same as `COMPANY_NAME` |
-| `DJANGO_PROJECT_NAME` | Django project folder from `src/` | `autoakademia` |
-| `ADMIN_EMAIL_DOMAIN` | Domain for admin@domain.com | `autoakademia.com` |
-| `AWS_PROFILE` | AWS CLI profile with credentials | `autoakademia`, `default` |
+| `DJANGO_PROJECT_NAME` | Django project folder from `src/` | `mycompany` |
+| `ADMIN_EMAIL_DOMAIN` | Domain for admin@domain.com | `example.com` |
+| `AWS_PROFILE` | AWS CLI profile with credentials | `mycompany`, `default` |
 
 ### Derived Variables (Auto-computed)
 

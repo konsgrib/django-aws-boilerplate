@@ -28,8 +28,8 @@ Thank you for considering contributing to this project! 🎉
 
 ```bash
 # Fork the repository on GitHub, then:
-git clone https://github.com/YOUR_USERNAME/autoakademia-aws.git
-cd autoakademia-aws
+git clone https://github.com/YOUR_USERNAME/django-aws-boilerplate.git
+cd django-aws-boilerplate
 ```
 
 ### 2. Set Up Development Environment

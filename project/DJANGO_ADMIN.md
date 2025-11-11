@@ -6,7 +6,7 @@ The Django superuser is automatically created on first deployment.
 
 **Username:** `admin`
 
-**Email:** `admin@autoakademia.com`
+**Email:** `admin@example.com`
 
 **Password:** Stored securely in AWS Secrets Manager
 
@@ -21,7 +21,7 @@ Run this command to retrieve the superuser password:
 
 ```bash
 aws secretsmanager get-secret-value \
-  --secret-id autoakademia/dev/django/superuser \
+  --secret-id mycompany/dev/django/superuser \
   --query SecretString \
   --output text | jq -r '.password'
 ```
@@ -30,7 +30,7 @@ For production environment, replace `dev` with `prod`:
 
 ```bash
 aws secretsmanager get-secret-value \
-  --secret-id autoakademia/prod/django/superuser \
+  --secret-id mycompany/prod/django/superuser \
   --query SecretString \
   --output text | jq -r '.password'
 ```
@@ -40,7 +40,7 @@ aws secretsmanager get-secret-value \
 1. Get EC2 instance IP:
    ```bash
    aws cloudformation describe-stacks \
-     --stack-name autoakademia-dev \
+     --stack-name mycompany-dev \
      --query 'Stacks[0].Outputs[?OutputKey==`PublicIP`].OutputValue' \
      --output text
    ```
@@ -66,15 +66,15 @@ NEW_PASSWORD="YourNewPassword123"
 
 # Update secret in AWS
 aws secretsmanager update-secret \
-  --secret-id autoakademia/dev/django/superuser \
-  --secret-string "{\"username\":\"admin\",\"email\":\"admin@autoakademia.com\",\"password\":\"$NEW_PASSWORD\"}"
+  --secret-id mycompany/dev/django/superuser \
+  --secret-string "{\"username\":\"admin\",\"email\":\"admin@example.com\",\"password\":\"$NEW_PASSWORD\"}"
 
 # SSH to EC2 and apply the new password
-ssh -i autoakademia.pem ec2-user@<EC2_IP>
-cd /home/ec2-user/autoakademia
+ssh -i mycompany.pem ec2-user@<EC2_IP>
+cd /home/ec2-user/mycompany
 
 # Update .env
-SUPERUSER_JSON=$(aws secretsmanager get-secret-value --secret-id autoakademia/dev/django/superuser --query SecretString --output text)
+SUPERUSER_JSON=$(aws secretsmanager get-secret-value --secret-id mycompany/dev/django/superuser --query SecretString --output text)
 SUPERUSER_PASSWORD=$(echo "$SUPERUSER_JSON" | jq -r '.password')
 sed -i "s/^DJANGO_SUPERUSER_PASSWORD=.*/DJANGO_SUPERUSER_PASSWORD=${SUPERUSER_PASSWORD}/" .env
 
@@ -94,8 +94,8 @@ PYEOF
 Use Django's built-in command to change password interactively:
 
 ```bash
-ssh -i autoakademia.pem ec2-user@<EC2_IP>
-cd /home/ec2-user/autoakademia
+ssh -i mycompany.pem ec2-user@<EC2_IP>
+cd /home/ec2-user/mycompany
 docker compose exec django python manage.py changepassword admin
 ```
 
@@ -112,8 +112,8 @@ If you see this error despite using correct credentials:
    **Solution**: Update password to use only alphanumeric characters:
    ```bash
    aws secretsmanager update-secret \
-     --secret-id autoakademia/dev/django/superuser \
-     --secret-string '{"username":"admin","email":"admin@autoakademia.com","password":"NewSimplePassword123"}'
+     --secret-id mycompany/dev/django/superuser \
+     --secret-string '{"username":"admin","email":"admin@example.com","password":"NewSimplePassword123"}'
    ```
    
    Then update in database (see "Change Password" section above).
@@ -135,7 +135,7 @@ If you see this error despite using correct credentials:
 If password in AWS Secrets doesn't match database:
 
 1. Verify EC2 IAM role has permissions to read the superuser secret
-2. Check `.env` file on EC2 has correct password: `cat /home/ec2-user/autoakademia/.env | grep SUPERUSER_PASSWORD`
+2. Check `.env` file on EC2 has correct password: `cat /home/ec2-user/mycompany/.env | grep SUPERUSER_PASSWORD`
 3. Manually sync password using script in "Change Password" section
 
 ## Password Policy

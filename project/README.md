@@ -1,4 +1,4 @@
-# Autoakademia AWS Deployment
+# Django AWS Deployment
 
 Production-ready Django deployment на AWS с использованием Docker, CloudFormation и полной изоляцией ресурсов для мультитенантности.
 
@@ -16,7 +16,7 @@ Production-ready Django deployment на AWS с использованием Dock
 ```bash
 # 1. Clone repository
 git clone <repository-url>
-cd autoakademia-aws
+cd django-aws-boilerplate
 
 # 2. Start local development environment
 ./project/scripts/dev/local-dev.sh
@@ -34,12 +34,12 @@ See [DEVELOPMENT.md](DEVELOPMENT.md) for detailed local development guide.
 
 ```bash
 # 1. Настройте AWS CLI
-aws configure --profile autoakademia
+aws configure --profile mycompany
 
 # 2. Создайте EC2 key pair
-aws ec2 create-key-pair --key-name autoakademia \
-  --query 'KeyMaterial' --output text > ../autoakademia.pem
-chmod 600 ../autoakademia.pem
+aws ec2 create-key-pair --key-name mycompany \
+  --query 'KeyMaterial' --output text > ../mycompany.pem
+chmod 600 ../mycompany.pem
 
 # 3. Деплой инфраструктуры и приложения
 cd project
@@ -49,11 +49,11 @@ cd project
 
 # 4. Получите admin пароль
 aws secretsmanager get-secret-value \
-  --secret-id autoakademia/dev/django/superuser \
+  --secret-id mycompany/dev/django/superuser \
   --query SecretString --output text | jq -r '.password'
 
 # 5. Откройте приложение
-aws cloudformation describe-stacks --stack-name autoakademia-dev \
+aws cloudformation describe-stacks --stack-name mycompany-dev \
   --query "Stacks[0].Outputs[?OutputKey=='PublicIP'].OutputValue" --output text
 # Перейдите на http://<IP>/admin/
 ```
@@ -118,17 +118,17 @@ project/
 
 1. **AWS CLI** настроен с credentials:
    ```bash
-   aws configure --profile autoakademia
+   aws configure --profile mycompany
    # Введите: Access Key, Secret Key, Region (eu-west-1)
    ```
 
 2. **EC2 Key Pair** создан в AWS:
    ```bash
    aws ec2 create-key-pair \
-     --key-name autoakademia \
+     --key-name mycompany \
      --query 'KeyMaterial' \
-     --output text > ../autoakademia.pem
-   chmod 600 ../autoakademia.pem
+     --output text > ../mycompany.pem
+   chmod 600 ../mycompany.pem
    ```
 
 3. **Docker** установлен локально для сборки образов
@@ -221,7 +221,7 @@ cd project
 ```bash
 # Получить пароль superuser из AWS Secrets Manager
 aws secretsmanager get-secret-value \
-  --secret-id autoakademia/dev/django/superuser \
+  --secret-id mycompany/dev/django/superuser \
   --query SecretString \
   --output text | jq '.'
 
@@ -235,7 +235,7 @@ aws secretsmanager get-secret-value \
 ```json
 {
   "username": "admin",
-  "email": "admin@autoakademia.com",
+  "email": "admin@example.com",
   "password": "RandomPassword123"
 }
 ```
@@ -244,7 +244,7 @@ aws secretsmanager get-secret-value \
 
 ```bash
 # Получить IP адрес EC2
-STACK_NAME=${COMPANY_NAME:-autoakademia}-dev
+STACK_NAME=${COMPANY_NAME:-mycompany}-dev
 EC2_IP=$(aws cloudformation describe-stacks \
   --stack-name ${STACK_NAME} \
   --query "Stacks[0].Outputs[?OutputKey=='PublicIP'].OutputValue" \
@@ -264,8 +264,8 @@ curl -I http://${EC2_IP}/admin/
 
 ```bash
 # Подключиться к EC2
-KEY_NAME=${COMPANY_NAME:-autoakademia}
-APP_DIR=/home/ec2-user/${COMPANY_NAME:-autoakademia}
+KEY_NAME=${COMPANY_NAME:-mycompany}
+APP_DIR=/home/ec2-user/${COMPANY_NAME:-mycompany}
 
 ssh -i ../${KEY_NAME}.pem ec2-user@${EC2_IP}
 
@@ -287,9 +287,9 @@ docker compose logs postgres   # Только PostgreSQL
 ./scripts/build-image.sh dev
 
 # 2. На EC2 перезапустить контейнер с новым образом
-KEY_NAME=${COMPANY_NAME:-autoakademia}
-APP_DIR=/home/ec2-user/${COMPANY_NAME:-autoakademia}
-STACK_NAME=${COMPANY_NAME:-autoakademia}-dev
+KEY_NAME=${COMPANY_NAME:-mycompany}
+APP_DIR=/home/ec2-user/${COMPANY_NAME:-mycompany}
+STACK_NAME=${COMPANY_NAME:-mycompany}-dev
 EC2_IP=$(aws cloudformation describe-stacks --stack-name ${STACK_NAME} \
   --query "Stacks[0].Outputs[?OutputKey=='PublicIP'].OutputValue" --output text)
 
@@ -306,8 +306,8 @@ EOF
 
 ```bash
 # Использовать переменные для мультитенантности
-S3_BUCKET=${COMPANY_NAME:-autoakademia}-dev-media
-APP_DIR=/home/ec2-user/${COMPANY_NAME:-autoakademia}
+S3_BUCKET=${COMPANY_NAME:-mycompany}-dev-media
+APP_DIR=/home/ec2-user/${COMPANY_NAME:-mycompany}
 
 # 1. Загрузить новые конфиги в S3
 aws s3 sync ./config/nginx s3://${S3_BUCKET}/config/nginx/ --delete
@@ -395,7 +395,7 @@ aws s3 rm s3://${COMPANY_NAME}-dev-media --recursive
 
 Ключевые переменные:
 - `COMPANY_NAME` - префикс для всех ресурсов (default: `autoakademia`)
-- `ADMIN_EMAIL_DOMAIN` - домен для admin email (default: `autoakademia.com`)
+- `ADMIN_EMAIL_DOMAIN` - домен для admin email (default: `example.com`)
 - `AWS_PROFILE` - AWS CLI профиль (default: `autoakademia`)
 - `DJANGO_PROJECT_NAME` - имя Django проекта в src/ (default: `autoakademia`)
 
@@ -419,13 +419,13 @@ aws s3 rm s3://${COMPANY_NAME}-dev-media --recursive
 
 ```bash
 # Проверить статус стека
-aws cloudformation describe-stacks --stack-name autoakademia-dev
+aws cloudformation describe-stacks --stack-name mycompany-dev
 
 # Посмотреть события деплоя
-aws cloudformation describe-stack-events --stack-name autoakademia-dev
+aws cloudformation describe-stack-events --stack-name mycompany-dev
 
 # Подключиться к EC2
-ssh -i autoakademia.pem ec2-user@<EC2_IP>
+ssh -i mycompany.pem ec2-user@<EC2_IP>
 
 # Логи контейнеров
 docker-compose logs -f django
@@ -456,7 +456,7 @@ All sensitive credentials are managed by AWS Secrets Manager:
 ```bash
 # Get superuser credentials
 aws secretsmanager get-secret-value \
-  --secret-id autoakademia/dev/django/superuser \
+  --secret-id mycompany/dev/django/superuser \
   --query SecretString --output text | jq '.'
 ```
 
@@ -467,15 +467,15 @@ See [DJANGO_ADMIN.md](DJANGO_ADMIN.md) for complete admin access documentation.
 ### UserData не завершился
 
 ```bash
-ssh -i autoakademia.pem ec2-user@<EC2_IP>
+ssh -i mycompany.pem ec2-user@<EC2_IP>
 tail -f /var/log/userdata.log
 ```
 
 ### Контейнеры не запускаются
 
 ```bash
-ssh -i autoakademia.pem ec2-user@<EC2_IP>
-cd /home/ec2-user/autoakademia
+ssh -i mycompany.pem ec2-user@<EC2_IP>
+cd /home/ec2-user/mycompany
 docker-compose ps
 docker-compose logs
 ```
@@ -484,7 +484,7 @@ docker-compose logs
 
 ```bash
 # Проверить существование образа
-aws ecr describe-images --repository-name autoakademia-dev
+aws ecr describe-images --repository-name mycompany-dev
 
 # Пересобрать и загрузить
 ./scripts/build-image.sh
@@ -493,8 +493,8 @@ aws ecr describe-images --repository-name autoakademia-dev
 ### Django миграции failed
 
 ```bash
-ssh -i autoakademia.pem ec2-user@<EC2_IP>
-cd /home/ec2-user/autoakademia
+ssh -i mycompany.pem ec2-user@<EC2_IP>
+cd /home/ec2-user/mycompany
 docker-compose exec django python manage.py migrate --fake-initial
 ```
 
