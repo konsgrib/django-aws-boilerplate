@@ -4,27 +4,27 @@ services:
   # PostgreSQL database
   postgres:
     image: postgres:16-alpine
-    container_name: autoakademia-postgres
+    container_name: myapp-postgres
     restart: unless-stopped
     environment:
-      POSTGRES_DB: ${DB_NAME:-autoakademia}
-      POSTGRES_USER: ${DB_USERNAME:-autoakademia}
+      POSTGRES_DB: ${DB_NAME:-myapp}
+      POSTGRES_USER: ${DB_USERNAME:-myapp}
       POSTGRES_PASSWORD: ${DB_PASSWORD}
     volumes:
       - postgres_data:/var/lib/postgresql/data
       - ./config/postgres:/docker-entrypoint-initdb.d:ro
     networks:
-      - autoakademia-network
+      - myapp-network
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${DB_USERNAME:-autoakademia}"]
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USERNAME:-myapp}"]
       interval: 10s
       timeout: 5s
       retries: 5
 
   # Django application
   django:
-    image: ${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION:-eu-west-1}.amazonaws.com/${STACK_NAME:-autoakademia-dev}:latest
-    container_name: autoakademia-django
+    image: ${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION:-eu-west-1}.amazonaws.com/${STACK_NAME:-mycompany-dev}:latest
+    container_name: myapp-django
     restart: unless-stopped
     environment:
       # Django settings
@@ -33,8 +33,8 @@ services:
       DEBUG: ${DEBUG:-false}
       # Database
       DB_ENGINE: django.db.backends.postgresql
-      DB_NAME: ${DB_NAME:-autoakademia}
-      DB_USER: ${DB_USERNAME:-autoakademia}
+      DB_NAME: ${DB_NAME:-myapp}
+      DB_USER: ${DB_USERNAME:-myapp}
       DB_PASSWORD: ${DB_PASSWORD}
       DB_HOST: postgres
       DB_PORT: ${DB_PORT:-5432}
@@ -43,13 +43,13 @@ services:
       AWS_DEFAULT_REGION: ${AWS_REGION:-eu-west-1}
       # Django superuser
       DJANGO_SUPERUSER_USERNAME: ${DJANGO_SUPERUSER_USERNAME:-admin}
-      DJANGO_SUPERUSER_EMAIL: ${DJANGO_SUPERUSER_EMAIL:-admin@autoakademia.com}
+      DJANGO_SUPERUSER_EMAIL: ${DJANGO_SUPERUSER_EMAIL:-admin@example.com}
       DJANGO_SUPERUSER_PASSWORD: ${DJANGO_SUPERUSER_PASSWORD:-admin123}
     volumes:
       - static_volume:/app/staticfiles
       - media_volume:/app/media
     networks:
-      - autoakademia-network
+      - myapp-network
     depends_on:
       postgres:
         condition: service_healthy
@@ -62,7 +62,7 @@ services:
   # Nginx reverse proxy
   nginx:
     image: nginx:alpine
-    container_name: autoakademia-nginx
+    container_name: myapp-nginx
     restart: unless-stopped
     ports:
       - "80:80"
@@ -72,7 +72,7 @@ services:
       - static_volume:/app/staticfiles:ro
       - media_volume:/app/media:ro
     networks:
-      - autoakademia-network
+      - myapp-network
     depends_on:
       - django
     healthcheck:
@@ -82,7 +82,7 @@ services:
       retries: 3
 
 networks:
-  autoakademia-network:
+  myapp-network:
     driver: bridge
 
 volumes:

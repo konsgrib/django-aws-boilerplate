@@ -16,13 +16,13 @@
 # ./scripts/build-image.sh dev
 # ./scripts/setup-instance.sh dev
 
-# Default configuration (autoakademia)
-export COMPANY_NAME=autoakademia
+# Default configuration (boilerplate example)
+export COMPANY_NAME=mycompany
 export PROJECT_NAME=web
-export APP_NAME=autoakademia
+export APP_NAME=mycompany
 export DJANGO_PROJECT_NAME=autoakademia
-export ADMIN_EMAIL_DOMAIN=autoakademia.com
-export AWS_PROFILE=autoakademia
+export ADMIN_EMAIL_DOMAIN=example.com
+export AWS_PROFILE=mycompany
 
 # ========================================
 # Configuration Variables Explanation

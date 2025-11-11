@@ -174,7 +174,7 @@ jobs:
       - name: Build and push Docker image
         env:
           ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
-          ECR_REPOSITORY: autoakademia-${{ steps.env.outputs.environment }}
+          ECR_REPOSITORY: ${{ secrets.COMPANY_NAME }}-${{ steps.env.outputs.environment }}
           IMAGE_TAG: ${{ github.sha }}
         run: |
           cd src
@@ -224,7 +224,7 @@ jobs:
           
           # Get instance IP
           INSTANCE_IP=$(aws ec2 describe-instances \
-            --filters "Name=tag:Name,Values=autoakademia-${{ steps.env.outputs.environment }}-ec2-instance" \
+            --filters "Name=tag:Name,Values=${{ secrets.COMPANY_NAME }}-${{ steps.env.outputs.environment }}-ec2-instance" \
                       "Name=instance-state-name,Values=running" \
             --query 'Reservations[0].Instances[0].PublicIpAddress' \
             --output text)
