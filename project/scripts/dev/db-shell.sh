@@ -11,4 +11,4 @@ cd "$PROJECT_ROOT"
 echo "🗄️  Connecting to PostgreSQL..."
 echo ""
 
-docker compose -f docker-compose.local.yml exec postgres psql -U autoakademia -d autoakademia
+docker compose -f docker-compose.local.yml exec postgres psql -U myapp -d myapp

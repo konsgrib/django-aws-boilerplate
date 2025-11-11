@@ -10,10 +10,10 @@ set_vars() {
     # GLOBAL COMPANY CONFIGURATION
     # Set these variables to customize deployment for different companies
     # ========================================
-    COMPANY_NAME=${COMPANY_NAME:-autoakademia}           # Company/client identifier (lowercase, no spaces)
+    COMPANY_NAME=${COMPANY_NAME:-mycompany}              # Company/client identifier (lowercase, no spaces)
     PROJECT_NAME=${PROJECT_NAME:-web}                    # Project name (for tagging)
     APP_NAME=${APP_NAME:-${COMPANY_NAME}}                # Application name (used in paths, containers)
-    DJANGO_PROJECT_NAME=${DJANGO_PROJECT_NAME:-autoakademia}  # Django project folder name (from src/)
+    DJANGO_PROJECT_NAME=${DJANGO_PROJECT_NAME:-myapp}    # Django project folder name (from src/)
     ADMIN_EMAIL_DOMAIN=${ADMIN_EMAIL_DOMAIN:-${COMPANY_NAME}.com}  # Domain for admin email
     
     # Derived variables (computed from COMPANY_NAME)

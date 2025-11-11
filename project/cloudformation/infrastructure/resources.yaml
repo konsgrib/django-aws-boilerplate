@@ -17,7 +17,7 @@ Metadata:
 Parameters:
   CompanyName:
     Type: String
-    Default: autoakademia
+    Default: mycompany
     Description: Company/client identifier (lowercase, no spaces). Used as prefix for all resources.
     AllowedPattern: ^[a-z0-9-]+$
     ConstraintDescription: Must contain only lowercase letters, numbers, and hyphens
@@ -32,7 +32,7 @@ Parameters:
   KeyName:
     Description: 'Name of an existing EC2 KeyPair to enable SSH access'
     Type: AWS::EC2::KeyPair::KeyName
-    Default: autoakademia
+    Default: mycompany
     ConstraintDescription: 'Must be the name of an existing EC2 KeyPair'
   AllowedSSHLocation:
     Type: String
@@ -40,11 +40,11 @@ Parameters:
     Description: CIDR allowed to access SSH on the instance (e.g. 1.2.3.4/32). Change from 0.0.0.0/0 for security.
   AdminEmailDomain:
     Type: String
-    Default: autoakademia.com
+    Default: example.com
     Description: Domain for Django admin email (e.g., company.com)
   DjangoProjectName:
     Type: String
-    Default: autoakademia
+    Default: myapp
     Description: Django project folder name (from src/ directory)
 
 Resources:
