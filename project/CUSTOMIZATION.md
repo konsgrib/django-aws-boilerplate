@@ -6,18 +6,18 @@ This boilerplate comes with default names that should be customized for your pro
 
 ### 1. Django Project Name
 
-The Django project folder is currently named `autoakademia` in `project/src/autoakademia/`.
+The Django project folder is currently named `myapp` in `project/src/myapp/`.
 
 **To rename:**
 
 ```bash
 cd project/src
-mv autoakademia myproject  # Replace 'myproject' with your desired name
+mv myapp myproject  # Replace 'myproject' with your desired name
 ```
 
 **Then update these files:**
 
-- `src/manage.py` - line 9: `'autoakademia.settings'` → `'myproject.settings'`
+- `src/manage.py` - line 9: `'myapp.settings'` → `'myproject.settings'`
 - `src/myproject/settings.py` - line 53, 70
 - `src/myproject/asgi.py` - line 14
 - `src/myproject/wsgi.py` - line 14
@@ -27,7 +27,7 @@ mv autoakademia myproject  # Replace 'myproject' with your desired name
 
 **Find all occurrences:**
 ```bash
-grep -r "autoakademia" project/src/ --exclude-dir=__pycache__
+grep -r "myapp" project/src/ --exclude-dir=__pycache__
 ```
 
 ### 2. Company/Project Identifiers
@@ -41,7 +41,7 @@ DJANGO_PROJECT_NAME=${DJANGO_PROJECT_NAME:-myproject}
 ```
 
 #### `project/cloudformation/infrastructure/resources.yaml`
-Lines 20, 35, 43, 47 - change default values from `autoakademia` to your company name.
+Lines 20, 35, 43, 47 - change default values from `mycompany` to your company name.
 
 #### Docker Compose Files
 
@@ -92,7 +92,7 @@ Create `rename-project.sh`:
 ```bash
 #!/bin/bash
 
-OLD_NAME="autoakademia"
+OLD_NAME="myapp"
 NEW_NAME="$1"
 
 if [ -z "$NEW_NAME" ]; then
@@ -187,7 +187,7 @@ cd project && ./scripts/deploy.sh dev
 
 ### Import Errors After Rename
 
-If you see `ModuleNotFoundError: No module named 'autoakademia'`:
+If you see `ModuleNotFoundError: No module named 'myapp'`:
 - Check all Python files for old import statements
 - Restart Django development server
 - Clear `__pycache__` directories: `find . -type d -name __pycache__ -exec rm -rf {} +`

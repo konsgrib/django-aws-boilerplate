@@ -369,7 +369,7 @@ aws secretsmanager get-secret-value \
 ## Удаление стека
 
 ```bash
-# Для текущей компании (autoakademia)
+# For your company (mycompany)
 ./scripts/delete.sh dev
 
 # Для другой компании
@@ -394,10 +394,10 @@ aws s3 rm s3://${COMPANY_NAME}-dev-media --recursive
 **На EC2**: генерируются автоматически из AWS Secrets Manager и SSM Parameter Store
 
 Ключевые переменные:
-- `COMPANY_NAME` - префикс для всех ресурсов (default: `autoakademia`)
+- `COMPANY_NAME` - префикс для всех ресурсов (default: `mycompany`)
 - `ADMIN_EMAIL_DOMAIN` - домен для admin email (default: `example.com`)
-- `AWS_PROFILE` - AWS CLI профиль (default: `autoakademia`)
-- `DJANGO_PROJECT_NAME` - имя Django проекта в src/ (default: `autoakademia`)
+- `AWS_PROFILE` - AWS CLI профиль (default: `mycompany`)
+- `DJANGO_PROJECT_NAME` - имя Django проекта в src/ (default: `mycompany`)
 
 Секреты хранятся в:
 - **Secrets Manager**: `${COMPANY_NAME}/{env}/django/SECRET_KEY`, `${COMPANY_NAME}/{env}/database/credentials`, `${COMPANY_NAME}/{env}/django/superuser`
@@ -411,7 +411,7 @@ aws s3 rm s3://${COMPANY_NAME}-dev-media --recursive
 - **prod**
 
 Каждое окружение создает отдельные ресурсы:
-- Stack: `autoakademia-{env}`
+- Stack: `mycompany-{env}`
 - S3: `autoakademia-{env}-media`
 - Секреты: `autoakademia/{env}/*`
 

@@ -157,8 +157,8 @@ git checkout -b feature/new-feature
 code project/src/
 
 # 3. Редактировать файлы (auto-reload работает!)
-# project/src/autoakademia/views.py
-# project/src/autoakademia/models.py
+# project/src/myapp/views.py
+# project/src/myapp/models.py
 
 # 4. Если изменили модели - создать миграцию
 docker compose -f docker-compose.local.yml exec django \
@@ -197,7 +197,7 @@ docker compose -f docker-compose.local.yml down
 ```
 project/
 ├── src/                    # Django application code
-│   ├── autoakademia/       # Main Django project
+│   ├── myapp/       # Main Django project
 │   │   ├── settings.py     # Django settings
 │   │   ├── urls.py         # URL routing
 │   │   ├── views.py        # Views
@@ -243,7 +243,7 @@ project/
 
 **Example:**
 ```python
-# Edit src/autoakademia/views.py
+# Edit src/myapp/views.py
 def my_view(request):
     return HttpResponse("Hello World!")  # Save file → auto-reload!
 

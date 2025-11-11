@@ -57,7 +57,7 @@ services:
       sh -c "python manage.py migrate --noinput &&
              python manage.py collectstatic --noinput &&
              python create_superuser.py &&
-             gunicorn --bind 0.0.0.0:8000 --workers 2 --threads 4 autoakademia.wsgi:application"
+             gunicorn --bind 0.0.0.0:8000 --workers 2 --threads 4 myapp.wsgi:application"
 
   # Nginx reverse proxy
   nginx:

@@ -7,7 +7,7 @@
 # export COMPANY_NAME=newcompany
 # export PROJECT_NAME=web
 # export APP_NAME=newcompany
-# export DJANGO_PROJECT_NAME=autoakademia          # Django project folder name in src/
+# export DJANGO_PROJECT_NAME=myapp          # Django project folder name in src/
 # export ADMIN_EMAIL_DOMAIN=newcompany.com
 # export AWS_PROFILE=newcompany                    # AWS CLI profile
 #
@@ -20,7 +20,7 @@
 export COMPANY_NAME=mycompany
 export PROJECT_NAME=web
 export APP_NAME=mycompany
-export DJANGO_PROJECT_NAME=autoakademia
+export DJANGO_PROJECT_NAME=myapp
 export ADMIN_EMAIL_DOMAIN=example.com
 export AWS_PROFILE=mycompany
 
@@ -47,7 +47,7 @@ export AWS_PROFILE=mycompany
 #   - Django project folder name from src/ directory
 #   - Must match the actual Django project folder
 #   - Used in gunicorn command and manage.py
-#   - Example: autoakademia, myproject
+#   - Example: myapp, myproject
 #
 # ADMIN_EMAIL_DOMAIN
 #   - Domain for Django admin superuser email

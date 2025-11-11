@@ -71,7 +71,7 @@ Create a configuration file (e.g., `company-newclient.env`):
 export COMPANY_NAME=newclient
 export PROJECT_NAME=web
 export APP_NAME=newclient
-export DJANGO_PROJECT_NAME=autoakademia  # Keep if Django project unchanged
+export DJANGO_PROJECT_NAME=myapp  # Keep if Django project unchanged
 export ADMIN_EMAIL_DOMAIN=newclient.com
 export AWS_PROFILE=newclient
 ```

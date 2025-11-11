@@ -21,4 +21,4 @@ echo ""
 
 docker compose -f docker-compose.local.yml exec django python manage.py startcommand "$COMMAND_NAME"
 
-echo "✅ Command created at: src/autoakademia/management/commands/${COMMAND_NAME}.py"
+echo "✅ Command created at: src/myapp/management/commands/${COMMAND_NAME}.py"
