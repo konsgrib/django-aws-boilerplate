@@ -1,0 +1,51 @@
+name: Pull Request Checks
+
+on:
+  pull_request:
+    branches: [ main, develop ]
+
+jobs:
+  pr-checks:
+    name: PR Quality Checks
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Check commit messages
+        run: |
+          echo "Checking commit messages..."
+          git log --format=%B -n 10 --no-merges
+
+      - name: Check for large files
+        run: |
+          echo "Checking for large files..."
+          find . -type f -size +5M | grep -v '.git' || echo "No large files found"
+
+      - name: Check for secrets
+        run: |
+          echo "Checking for potential secrets..."
+          if grep -r -i "password\|secret\|api_key\|access_key" --include="*.py" --include="*.yml" --exclude-dir=".git" .; then
+            echo "⚠️  Warning: Potential secrets found in code"
+          else
+            echo "✅ No obvious secrets found"
+          fi
+
+      - name: PR size check
+        run: |
+          FILES_CHANGED=$(git diff --name-only origin/${{ github.base_ref }}...HEAD | wc -l)
+          LINES_CHANGED=$(git diff --stat origin/${{ github.base_ref }}...HEAD | tail -1 | awk '{print $4+$6}')
+          
+          echo "Files changed: $FILES_CHANGED"
+          echo "Lines changed: $LINES_CHANGED"
+          
+          if [ $FILES_CHANGED -gt 50 ] || [ $LINES_CHANGED -gt 1000 ]; then
+            echo "⚠️  Warning: This PR is quite large. Consider splitting it into smaller PRs."
+          fi

@@ -1,0 +1,394 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: 'CloudFormation template for creating EC2 instance with Docker-based Django application on Amazon Linux 2023'
+
+Metadata:
+  AWS::CloudFormation::Interface:
+    ParameterGroups:
+      - Label:
+          default: "Instance Configuration"
+        Parameters:
+          - KeyName
+    ParameterLabels:
+      KeyName:
+        default: "EC2 Key Pair Name"
+  AWS::CloudFormation::Designer:
+    ApplicationVersion: "1.0"
+
+Parameters:
+  CompanyName:
+    Type: String
+    Default: autoakademia
+    Description: Company/client identifier (lowercase, no spaces). Used as prefix for all resources.
+    AllowedPattern: ^[a-z0-9-]+$
+    ConstraintDescription: Must contain only lowercase letters, numbers, and hyphens
+  Environment:
+    Type: String
+    Default: dev
+    AllowedValues:
+      - dev
+      - stag
+      - prod
+    Description: Environment name (dev, stag, or prod)
+  KeyName:
+    Description: 'Name of an existing EC2 KeyPair to enable SSH access'
+    Type: AWS::EC2::KeyPair::KeyName
+    Default: autoakademia
+    ConstraintDescription: 'Must be the name of an existing EC2 KeyPair'
+  AllowedSSHLocation:
+    Type: String
+    Default: 0.0.0.0/0
+    Description: CIDR allowed to access SSH on the instance (e.g. 1.2.3.4/32). Change from 0.0.0.0/0 for security.
+  AdminEmailDomain:
+    Type: String
+    Default: autoakademia.com
+    Description: Domain for Django admin email (e.g., company.com)
+  DjangoProjectName:
+    Type: String
+    Default: autoakademia
+    Description: Django project folder name (from src/ directory)
+
+Resources:
+  AppIAMRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: !Sub '${CompanyName}-${Environment}-ec2-role'
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: ec2.amazonaws.com
+            Action: sts:AssumeRole
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore
+      Policies:
+        - PolicyName: AppS3AccessPolicy
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - s3:GetObject
+                  - s3:PutObject
+                  - s3:DeleteObject
+                  - s3:ListBucket
+                  - s3:GetBucketLocation
+                Resource:
+                  - !Sub '${AppS3Bucket.Arn}/*'
+                  - !GetAtt AppS3Bucket.Arn
+        - PolicyName: AppSecretsAndParamsRead
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - secretsmanager:GetSecretValue
+                Resource:
+                  - !Ref DjangoSecretKey
+                  - !Sub '${DjangoSecretKey}*'
+                  - !Ref DBSecret
+                  - !Sub '${DBSecret}*'
+                  - !Ref DjangoSuperuserSecret
+                  - !Sub '${DjangoSuperuserSecret}*'
+              - Effect: Allow
+                Action:
+                  - ssm:GetParameter
+                  - ssm:GetParameters
+                  - ssm:GetParametersByPath
+                Resource:
+                  - !Sub 'arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:parameter/${CompanyName}/${Environment}/*'
+        - PolicyName: AppECRAccess
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - ecr:GetAuthorizationToken
+                  - ecr:BatchCheckLayerAvailability
+                  - ecr:GetDownloadUrlForLayer
+                  - ecr:BatchGetImage
+                Resource: '*'
+      Tags:
+        - Key: Name
+          Value: !Sub '${CompanyName}-iam-role'
+
+  AppInstanceProfile:
+    Type: AWS::IAM::InstanceProfile
+    Properties:
+      InstanceProfileName: !Sub '${CompanyName}-${Environment}-instance-profile'
+      Roles:
+        - !Ref AppIAMRole
+
+  AppS3Bucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName: !Sub '${CompanyName}-${Environment}-media'
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: true
+        BlockPublicPolicy: true
+        IgnorePublicAcls: true
+        RestrictPublicBuckets: true
+      VersioningConfiguration:
+        Status: Enabled
+      BucketEncryption:
+        ServerSideEncryptionConfiguration:
+          - ServerSideEncryptionByDefault:
+              SSEAlgorithm: AES256
+      Tags:
+        - Key: Name
+          Value: !Sub '${CompanyName}-media-bucket'
+        - Key: Environment
+          Value: !Ref Environment
+
+  AppSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupName: !Sub '${CompanyName}-${Environment}-security-group'
+      GroupDescription: !Sub 'Security group for ${CompanyName} ${Environment} EC2 instance'
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 22
+          ToPort: 22
+          CidrIp: !Ref AllowedSSHLocation
+          Description: 'SSH access (restricted)'
+        - IpProtocol: tcp
+          FromPort: 80
+          ToPort: 80
+          CidrIp: 0.0.0.0/0
+          Description: 'HTTP'
+        - IpProtocol: tcp
+          FromPort: 443
+          ToPort: 443
+          CidrIp: 0.0.0.0/0
+          Description: 'HTTPS'
+      Tags:
+        - Key: Name
+          Value: !Sub '${CompanyName}-${Environment}-security-group'
+        - Key: Environment
+          Value: !Ref Environment
+
+  # Secrets Manager: Django SECRET_KEY (randomly generated)
+  DjangoSecretKey:
+    Type: AWS::SecretsManager::Secret
+    Properties:
+      Name: !Sub '${CompanyName}/${Environment}/django/SECRET_KEY'
+      Description: 'Django SECRET_KEY for the application'
+      GenerateSecretString:
+        PasswordLength: 64
+        ExcludePunctuation: true
+        ExcludeCharacters: '"@/\<>%`|&;$'
+
+  # Secrets Manager: Database credentials (username preset, password generated)
+  DBSecret:
+    Type: AWS::SecretsManager::Secret
+    Properties:
+      Name: !Sub '${CompanyName}/${Environment}/database/credentials'
+      Description: 'PostgreSQL credentials for the application'
+      GenerateSecretString:
+        SecretStringTemplate: !Sub '{"username":"${CompanyName}","dbname":"${CompanyName}","host":"localhost","port":"5432"}'
+        GenerateStringKey: password
+        PasswordLength: 32
+        ExcludePunctuation: true
+        ExcludeCharacters: '"@/\<>%`|&;$'
+
+  # Secrets Manager: Django superuser credentials
+  DjangoSuperuserSecret:
+    Type: AWS::SecretsManager::Secret
+    Properties:
+      Name: !Sub '${CompanyName}/${Environment}/django/superuser'
+      Description: 'Django admin superuser credentials'
+      GenerateSecretString:
+        SecretStringTemplate: !Sub '{"username":"admin","email":"admin@${AdminEmailDomain}"}'
+        GenerateStringKey: password
+        PasswordLength: 16
+        ExcludePunctuation: true
+        ExcludeCharacters: '"@/\\'
+
+  # SSM Parameters for simple app config (.env-style)
+  SSMParamAllowedHosts:
+    Type: AWS::SSM::Parameter
+    Properties:
+      Name: !Sub '/${CompanyName}/${Environment}/app/ALLOWED_HOSTS'
+      Type: String
+      Value: '*'
+      Description: 'Comma-separated allowed hosts for Django'
+
+  SSMParamDebug:
+    Type: AWS::SSM::Parameter
+    Properties:
+      Name: !Sub '/${CompanyName}/${Environment}/app/DEBUG'
+      Type: String
+      Value: 'false'
+      Description: 'Django DEBUG flag'
+
+  SSMParamS3Bucket:
+    Type: AWS::SSM::Parameter
+    Properties:
+      Name: !Sub '/${CompanyName}/${Environment}/app/S3_BUCKET'
+      Type: String
+      Value: !Ref AppS3Bucket
+      Description: 'S3 bucket name for media/config'
+
+  SSMParamAuthorizedSSHKey:
+    Type: AWS::SSM::Parameter
+    Properties:
+      Name: !Sub '/${CompanyName}/${Environment}/ssh/authorized_key'
+      Type: String
+      Value: 'to-be-set'
+      Description: 'Additional authorized SSH public key (optional, encrypted)'
+
+  AppEC2Instance:
+    Type: AWS::EC2::Instance
+    Properties:
+      InstanceType: t3.micro
+      ImageId: ami-0d62146aa13061439
+      KeyName: !Ref KeyName
+      IamInstanceProfile: !Ref AppInstanceProfile
+      SecurityGroups:
+        - !Ref AppSecurityGroup
+      UserData:
+        Fn::Base64: !Sub |
+          #!/bin/bash
+          yum update -y
+          
+          # Install git
+          dnf update -y
+          dnf install -y git awscli jq
+          
+          # Install Docker
+          dnf install -y docker
+          systemctl enable --now docker
+          usermod -aG docker ec2-user
+          systemctl start docker
+          systemctl enable docker
+          
+          # Install Docker Compose
+          mkdir -p /usr/local/lib/docker/cli-plugins
+          curl -L "https://github.com/docker/compose/releases/latest/download/docker-compose-$(uname -s)-$(uname -m)" -o /usr/local/lib/docker/cli-plugins/docker-compose
+          chmod +x /usr/local/lib/docker/cli-plugins/docker-compose
+          
+          # Generate SSH key for ec2-user (run as ec2-user, not root)
+          sudo -u ec2-user bash -c '
+            mkdir -p /home/ec2-user/.ssh
+            chmod 700 /home/ec2-user/.ssh
+            ssh-keygen -t ed25519 -C "konstantin@gribanov.net" -f /home/ec2-user/.ssh/id_ed25519 -N ""
+            chmod 600 /home/ec2-user/.ssh/id_ed25519
+            chmod 644 /home/ec2-user/.ssh/id_ed25519.pub
+            echo "SSH key generated successfully" >> /home/ec2-user/ssh-setup.log
+          '
+          
+          # Install Docker Buildx (run as root)
+          echo "Installing Docker Buildx..." >> /var/log/userdata.log
+          BUILDX_VERSION=$(curl -s https://api.github.com/repos/docker/buildx/releases/latest | grep -Po '"tag_name": "v\K[^"]*')
+          curl -L "https://github.com/docker/buildx/releases/latest/download/buildx-v$BUILDX_VERSION.linux-amd64" -o /usr/local/lib/docker/cli-plugins/docker-buildx
+          chmod +x /usr/local/lib/docker/cli-plugins/docker-buildx
+          echo "Docker Buildx v$BUILDX_VERSION installed successfully" >> /var/log/userdata.log
+
+          # Bootstrap application environment from AWS Secrets Manager and SSM Parameter Store
+          mkdir -p /opt/${CompanyName}
+          cat >/opt/${CompanyName}/bootstrap_env.sh <<EOFSCRIPT
+          #!/usr/bin/env bash
+          set -euo pipefail
+          COMPANY_NAME="${CompanyName}"
+          ENVIRONMENT="${Environment}"
+          echo "Generating /opt/\$COMPANY_NAME/.env from AWS for environment \$ENVIRONMENT..." >> /var/log/userdata.log
+          DJANGO_SECRET_KEY=\$(aws secretsmanager get-secret-value --secret-id \$COMPANY_NAME/\$ENVIRONMENT/django/SECRET_KEY --query SecretString --output text)
+          DB_SECRET_JSON=\$(aws secretsmanager get-secret-value --secret-id \$COMPANY_NAME/\$ENVIRONMENT/database/credentials --query SecretString --output text)
+          DB_USERNAME=\$(echo "\$DB_SECRET_JSON" | jq -r .username)
+          DB_PASSWORD=\$(echo "\$DB_SECRET_JSON" | jq -r .password)
+          DB_HOST=\$(echo "\$DB_SECRET_JSON" | jq -r .host)
+          DB_NAME=\$(echo "\$DB_SECRET_JSON" | jq -r .dbname)
+          DB_PORT=\$(echo "\$DB_SECRET_JSON" | jq -r .port)
+          SUPERUSER_SECRET_JSON=\$(aws secretsmanager get-secret-value --secret-id \$COMPANY_NAME/\$ENVIRONMENT/django/superuser --query SecretString --output text)
+          SUPERUSER_USERNAME=\$(echo "\$SUPERUSER_SECRET_JSON" | jq -r .username)
+          SUPERUSER_EMAIL=\$(echo "\$SUPERUSER_SECRET_JSON" | jq -r .email)
+          SUPERUSER_PASSWORD=\$(echo "\$SUPERUSER_SECRET_JSON" | jq -r .password)
+          ALLOWED_HOSTS=\$(aws ssm get-parameter --name /\$COMPANY_NAME/\$ENVIRONMENT/app/ALLOWED_HOSTS --query Parameter.Value --output text)
+          DEBUG=\$(aws ssm get-parameter --name /\$COMPANY_NAME/\$ENVIRONMENT/app/DEBUG --query Parameter.Value --output text)
+          S3_BUCKET=\$(aws ssm get-parameter --name /\$COMPANY_NAME/\$ENVIRONMENT/app/S3_BUCKET --query Parameter.Value --output text)
+          cat > /opt/\$COMPANY_NAME/.env <<EOV
+          DJANGO_SECRET_KEY=\$DJANGO_SECRET_KEY
+          DB_USERNAME=\$DB_USERNAME
+          DB_PASSWORD=\$DB_PASSWORD
+          DB_HOST=\$DB_HOST
+          DB_NAME=\$DB_NAME
+          DB_PORT=\$DB_PORT
+          ALLOWED_HOSTS=\$ALLOWED_HOSTS
+          DEBUG=\$DEBUG
+          S3_BUCKET=\$S3_BUCKET
+          DJANGO_SUPERUSER_USERNAME=\$SUPERUSER_USERNAME
+          DJANGO_SUPERUSER_EMAIL=\$SUPERUSER_EMAIL
+          DJANGO_SUPERUSER_PASSWORD=\$SUPERUSER_PASSWORD
+          EOV
+          chown ec2-user:ec2-user /opt/\$COMPANY_NAME/.env
+          chmod 600 /opt/\$COMPANY_NAME/.env
+          echo "Wrote /opt/\$COMPANY_NAME/.env" >> /var/log/userdata.log
+          EOFSCRIPT
+          chmod +x /opt/${CompanyName}/bootstrap_env.sh
+          /opt/${CompanyName}/bootstrap_env.sh || echo "Env generation failed" >> /var/log/userdata.log
+
+          # Optionally append an extra authorized SSH public key from SSM
+          AUTH_KEY=$(aws ssm get-parameter --with-decryption --name /${CompanyName}/${Environment}/ssh/authorized_key --query Parameter.Value --output text 2>/dev/null || echo "")
+          if [ -n "$AUTH_KEY" ] && [ "$AUTH_KEY" != "to-be-set" ]; then
+            echo "$AUTH_KEY" >> /home/ec2-user/.ssh/authorized_keys
+            chown ec2-user:ec2-user /home/ec2-user/.ssh/authorized_keys
+            chmod 600 /home/ec2-user/.ssh/authorized_keys
+            echo "Appended extra authorized SSH key from SSM" >> /var/log/userdata.log
+          fi
+          
+          # Log completion
+          echo "UserData script completed successfully" >> /var/log/userdata.log
+      Tags:
+        - Key: Name
+          Value: !Sub '${CompanyName}-${Environment}-ec2-instance'
+        - Key: Environment
+          Value: !Ref Environment
+        - Key: Company
+          Value: !Ref CompanyName
+
+Outputs:
+  InstanceId:
+    Description: 'ID of the created EC2 instance'
+    Value: !Ref AppEC2Instance
+    Export:
+      Name: !Sub '${AWS::StackName}-InstanceId'
+
+  PublicIP:
+    Description: 'Public IP address of the EC2 instance'
+    Value: !GetAtt AppEC2Instance.PublicIp
+    Export:
+      Name: !Sub '${AWS::StackName}-PublicIP'
+
+  SecurityGroupId:
+    Description: 'ID of the created Security Group'
+    Value: !Ref AppSecurityGroup
+    Export:
+      Name: !Sub '${AWS::StackName}-SecurityGroupId'
+
+  SSHCommand:
+    Description: 'SSH command to connect to the instance'
+    Value: !Sub 'ssh -i ${KeyName}.pem ec2-user@${AppEC2Instance.PublicIp}'
+
+  S3BucketName:
+    Description: 'Name of the S3 bucket for media storage'
+    Value: !Ref AppS3Bucket
+    Export:
+      Name: !Sub '${AWS::StackName}-S3BucketName'
+
+  S3BucketArn:
+    Description: 'ARN of the S3 bucket for media storage'
+    Value: !GetAtt AppS3Bucket.Arn
+    Export:
+      Name: !Sub '${AWS::StackName}-S3BucketArn'
+
+  DjangoSecretKeyArn:
+    Description: 'ARN of the Django SECRET_KEY secret'
+    Value: !Ref DjangoSecretKey
+
+  DBSecretArn:
+    Description: 'ARN of the database credentials secret'
+    Value: !Ref DBSecret
+
+  SSMParamPaths:
+    Description: 'SSM Parameter paths used by the application'
+    Value: !Sub '/${CompanyName}/app/*, /${CompanyName}/ssh/*'

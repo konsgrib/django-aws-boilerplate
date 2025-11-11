@@ -1,0 +1,94 @@
+version: '3.8'
+
+services:
+  # PostgreSQL database
+  postgres:
+    image: postgres:16-alpine
+    container_name: autoakademia-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${DB_NAME:-autoakademia}
+      POSTGRES_USER: ${DB_USERNAME:-autoakademia}
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./config/postgres:/docker-entrypoint-initdb.d:ro
+    networks:
+      - autoakademia-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USERNAME:-autoakademia}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Django application
+  django:
+    image: ${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION:-eu-west-1}.amazonaws.com/${STACK_NAME:-autoakademia-dev}:latest
+    container_name: autoakademia-django
+    restart: unless-stopped
+    environment:
+      # Django settings
+      DJANGO_SECRET_KEY: ${DJANGO_SECRET_KEY}
+      DJANGO_ALLOWED_HOSTS: ${ALLOWED_HOSTS:-*}
+      DEBUG: ${DEBUG:-false}
+      # Database
+      DB_ENGINE: django.db.backends.postgresql
+      DB_NAME: ${DB_NAME:-autoakademia}
+      DB_USER: ${DB_USERNAME:-autoakademia}
+      DB_PASSWORD: ${DB_PASSWORD}
+      DB_HOST: postgres
+      DB_PORT: ${DB_PORT:-5432}
+      # AWS S3
+      S3_BUCKET: ${S3_BUCKET}
+      AWS_DEFAULT_REGION: ${AWS_REGION:-eu-west-1}
+      # Django superuser
+      DJANGO_SUPERUSER_USERNAME: ${DJANGO_SUPERUSER_USERNAME:-admin}
+      DJANGO_SUPERUSER_EMAIL: ${DJANGO_SUPERUSER_EMAIL:-admin@autoakademia.com}
+      DJANGO_SUPERUSER_PASSWORD: ${DJANGO_SUPERUSER_PASSWORD:-admin123}
+    volumes:
+      - static_volume:/app/staticfiles
+      - media_volume:/app/media
+    networks:
+      - autoakademia-network
+    depends_on:
+      postgres:
+        condition: service_healthy
+    command: >
+      sh -c "python manage.py migrate --noinput &&
+             python manage.py collectstatic --noinput &&
+             python create_superuser.py &&
+             gunicorn --bind 0.0.0.0:8000 --workers 2 --threads 4 autoakademia.wsgi:application"
+
+  # Nginx reverse proxy
+  nginx:
+    image: nginx:alpine
+    container_name: autoakademia-nginx
+    restart: unless-stopped
+    ports:
+      - "80:80"
+    volumes:
+      - ./config/nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./config/nginx/autoakademia.conf:/etc/nginx/conf.d/default.conf:ro
+      - static_volume:/app/staticfiles:ro
+      - media_volume:/app/media:ro
+    networks:
+      - autoakademia-network
+    depends_on:
+      - django
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+networks:
+  autoakademia-network:
+    driver: bridge
+
+volumes:
+  postgres_data:
+    driver: local
+  static_volume:
+    driver: local
+  media_volume:
+    driver: local
