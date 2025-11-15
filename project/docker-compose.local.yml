@@ -32,7 +32,7 @@ services:
     environment:
       DJANGO_SECRET_KEY: "local-dev-secret-key-change-in-production"
       DB_USERNAME: myapp
-      DB_PASSWORD: localdevpassword
+      DB_PASSWORD: devpassword123
       DB_HOST: postgres
       DB_NAME: myapp
       DB_PORT: 5432
