@@ -59,7 +59,11 @@ git add .
 git commit -m "Initial commit from django-aws-boilerplate"
 
 # Вариант A: Создать репозиторий через GitHub CLI (рекомендуется)
+# Приватный репозиторий (по умолчанию)
 gh repo create YOUR_PROJECT_NAME --private --source=. --remote=origin --push
+
+# Или публичный репозиторий
+gh repo create YOUR_PROJECT_NAME --public --source=. --remote=origin --push
 
 # Вариант B: Вручную создать на GitHub и связать
 # 1. Создайте репозиторий на https://github.com/new
