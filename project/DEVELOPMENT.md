@@ -1,603 +1,921 @@
 # Development Guide
 
-Complete guide for local development and testing.
+Полное руководство по разработке и развёртыванию Django AWS Boilerplate.
 
-## Table of Contents
+## 📑 Содержание
 
-- [Prerequisites](#prerequisites)
-- [Quick Start](#quick-start)
-- [Development Workflow](#development-workflow)
-- [Testing](#testing)
-- [Database Management](#database-management)
-- [Debugging](#debugging)
-- [Code Quality](#code-quality)
+- [Быстрый старт](#быстрый-старт)
+- [Переименование проекта](#переименование-проекта)
+- [Локальная разработка](#локальная-разработка)
+- [Работа с базой данных](#работа-с-базой-данных)
+- [Тестирование](#тестирование)
+- [Развёртывание на AWS](#развёртывание-на-aws)
+- [Multi-tenant конфигурация](#multi-tenant-конфигурация)
+- [CI/CD](#cicd)
+- [Troubleshooting](#troubleshooting)
 
 ---
 
-## Prerequisites
+## Быстрый старт
 
-### Required Software
+### Предварительные требования
 
-- **Docker Desktop** (latest version)
-- **Python 3.12+** (for local script execution)
+- **Docker** 20.10+
+- **Docker Compose** v2.0+
 - **Git**
-- **Code Editor** (VS Code recommended)
+- **AWS CLI** (для deployment)
 
-### Optional Tools
-
-- **PostgreSQL client** (for direct DB access)
-- **AWS CLI** (for deployment)
-- **Postman/HTTPie** (for API testing)
-
----
-
-## Local Development Architecture
-
-### Overview
-
-Локальная разработка использует **отдельный** `docker-compose.local.yml`, полностью изолированный от AWS:
-
-**Ключевые отличия от production:**
-
-| Аспект | Production (AWS) | Local Development |
-|--------|------------------|-------------------|
-| **Секреты** | AWS Secrets Manager | Hardcoded в docker-compose |
-| **БД** | PostgreSQL в Docker на EC2 | PostgreSQL контейнер локально |
-| **Конфиги** | Загружаются из S3 | Монтируются из файлов |
-| **Исходники** | В Docker image | Volume mount (live reload) |
-| **Django server** | Gunicorn (production) | runserver (dev mode) |
-| **Порты** | Только 80 (nginx) | 80 (nginx), 8000 (django), 5432 (postgres) |
-| **S3/ECR** | Используется | Не нужно |
-
-### Services Architecture
-
-```
-┌─────────────────────────────────────────┐
-│  Browser: http://localhost              │
-└────────────────┬────────────────────────┘
-                 │
-    ┌────────────▼────────────┐
-    │  nginx:alpine           │  Port 80
-    │  - Static files         │
-    │  - Reverse proxy        │
-    └────────────┬────────────┘
-                 │
-    ┌────────────▼────────────┐
-    │  Django (runserver)     │  Port 8000
-    │  - DEBUG=true           │
-    │  - Auto-reload          │
-    │  - Volume mounted code  │
-    └────────────┬────────────┘
-                 │
-    ┌────────────▼────────────┐
-    │  PostgreSQL 16          │  Port 5432
-    │  - Local data volume    │
-    │  - Accessible от host   │
-    └─────────────────────────┘
-```
-
-### What Gets Started
-
-**3 containers:**
-1. **postgres** - База данных (exposed на localhost:5432)
-2. **django** - Django с runserver (exposed на localhost:8000)
-3. **nginx** - Reverse proxy (exposed на localhost:80)
-
-**Volumes:**
-- `postgres_data_local` - Данные БД (persistent)
-- `static_volume_local` - Static files
-- `media_volume_local` - Media uploads
-- `./src:/app` - **Source code mount** (changes reflect instantly!)
-
----
-
-## Quick Start
-
-### 1. Clone Repository
+### Первый запуск
 
 ```bash
-git clone <repository-url>
+# 1. Клонируйте репозиторий
+git clone https://github.com/YOUR_USERNAME/django-aws-boilerplate.git
 cd django-aws-boilerplate
-```
 
-### 2. Start Local Environment
+# 2. Запустите локальную среду
+cd project
+./scripts/dev/local-dev.sh
 
-```bash
-./project/scripts/dev/local-dev.sh
-```
-
-**Что происходит:**
-1. ✅ Проверяет Docker
-2. ✅ Создаёт `.env.local` из `.env.example` (если нет)
-3. ✅ Останавливает старые контейнеры
-4. ✅ Запускает PostgreSQL, Django, Nginx
-5. ✅ Ждёт готовности PostgreSQL (health check)
-6. ✅ Выполняет миграции
-7. ✅ Создаёт superuser (admin/admin123)
-8. ✅ Собирает static files
-9. ✅ Запускает development server
-10. ✅ Проверяет доступность через health endpoint
-
-**Время запуска:** ~30-60 секунд
-
-### 3. Access Application
-
-- **Application**: http://localhost
-- **Admin Panel**: http://localhost/admin/
-  - Username: `admin`
-  - Password: `admin123`
-- **Health Check**: http://localhost/health/
-- **Direct Django**: http://localhost:8000 (bypassing nginx)
-- **PostgreSQL**: `localhost:5432` (credentials в docker-compose.local.yml)
-
----
-
-## Development Workflow
-
-### Typical Developer Day
-
-**Утренний старт:**
-```bash
-# Запустить окружение
-./project/scripts/dev/local-dev.sh
-
-# Открыть в браузере
+# 3. Откройте в браузере
 open http://localhost/admin/
-
-# Открыть логи в отдельном окне
-docker compose -f docker-compose.local.yml logs -f django
+# Логин: admin
+# Пароль: admin123
 ```
 
-**Разработка фичи:**
-```bash
-# 1. Создать ветку
-git checkout -b feature/new-feature
+**Готово!** Приложение запущено и готово к разработке.
 
-# 2. Открыть код в редакторе
-code project/src/
+---
 
-# 3. Редактировать файлы (auto-reload работает!)
-# project/src/myapp/views.py
-# project/src/myapp/models.py
+## Переименование проекта
 
-# 4. Если изменили модели - создать миграцию
-docker compose -f docker-compose.local.yml exec django \
-  python manage.py makemigrations
+По умолчанию Django проект называется `myapp`. Переименуйте перед началом работы:
 
-# 5. Применить миграцию
-docker compose -f docker-compose.local.yml exec django \
-  python manage.py migrate
-
-# 6. Протестировать в браузере
-open http://localhost/your-new-page/
-
-# 7. Написать тесты
-# project/src/tests/test_new_feature.py
-
-# 8. Запустить тесты
-./project/scripts/dev/run-tests.sh
-
-# 9. Commit и push
-git add .
-git commit -m "feat: add new feature"
-git push origin feature/new-feature
-```
-
-**Конец дня:**
-```bash
-# Остановить контейнеры (данные сохранятся)
-docker compose -f docker-compose.local.yml down
-
-# Или оставить работать
-# (продолжите завтра с того же места)
-```
-
-### Project Structure
-
-```
-project/
-├── src/                    # Django application code
-│   ├── myapp/       # Main Django project
-│   │   ├── settings.py     # Django settings
-│   │   ├── urls.py         # URL routing
-│   │   ├── views.py        # Views
-│   │   └── wsgi.py         # WSGI config
-│   ├── tests/              # Test files
-│   │   ├── test_basic.py   # Sample tests
-│   │   ├── factories.py    # Test data factories
-│   │   └── conftest.py     # Pytest fixtures
-│   ├── fixtures/           # Test data (JSON)
-│   ├── requirements.txt    # Python dependencies
-│   ├── manage.py           # Django management
-│   ├── Dockerfile          # Docker image definition
-│   └── .env.example        # Environment template
-├── config/                 # Configuration files
-│   ├── nginx/              # Nginx configs
-│   │   ├── nginx.conf      # Main nginx config
-│   │   └── app.conf # Site config
-│   └── postgres/           # PostgreSQL init scripts
-│       └── 01-init.sh      # DB initialization
-├── scripts/
-│   ├── dev/                # Development helper scripts
-│   │   ├── local-dev.sh    # ⭐ Start local environment
-│   │   ├── db-shell.sh     # PostgreSQL shell
-│   │   ├── django-shell.sh # Django shell
-│   │   └── run-tests.sh    # Run tests
-│   ├── deploy.sh           # AWS deployment
-│   ├── build-image.sh      # Build Docker image
-│   └── setup-instance.sh   # Setup EC2 instance
-├── cloudformation/         # AWS infrastructure
-│   └── infrastructure/
-│       └── resources.yaml  # CloudFormation template
-└── docker-compose.local.yml # ⭐ Local development compose
-```
-
-### Making Code Changes
-
-#### Python/Django Code Changes
-
-1. **Edit code** in `src/` directory
-2. **Changes are auto-reloaded** (Django runserver watches for changes)
-3. **See changes instantly** - refresh browser
-4. **View logs**: `docker compose -f docker-compose.local.yml logs -f django`
-
-**Example:**
-```python
-# Edit src/myapp/views.py
-def my_view(request):
-    return HttpResponse("Hello World!")  # Save file → auto-reload!
-
-# No need to restart! Just refresh browser.
-```
-
-#### Configuration Changes (nginx, docker-compose)
-
-1. **Edit configuration file**
-2. **Restart affected service**:
+### Автоматическое переименование
 
 ```bash
-# Nginx config changed
-docker compose -f docker-compose.local.yml restart nginx
+#!/bin/bash
+OLD_NAME="myapp"
+NEW_NAME="myproject"  # Ваше имя
 
-# docker-compose.yml changed (need rebuild)
-docker compose -f docker-compose.local.yml down
-docker compose -f docker-compose.local.yml up -d --build
+cd project/src
+mv "$OLD_NAME" "$NEW_NAME"
+
+# Обновить все Python файлы
+find . -type f -name "*.py" -exec sed -i "s/${OLD_NAME}\./${NEW_NAME}./g" {} +
+find . -type f -name "*.py" -exec sed -i "s/${OLD_NAME} project/${NEW_NAME} project/g" {} +
+
+# Обновить конфиги
+cd ..
+sed -i "s/${OLD_NAME}/${NEW_NAME}/g" src/Dockerfile
+sed -i "s/${OLD_NAME}/${NEW_NAME}/g" src/pytest.ini  
+sed -i "s/${OLD_NAME}/${NEW_NAME}/g" docker-compose.yml
+sed -i "s/${OLD_NAME}/${NEW_NAME}/g" docker-compose.local.yml
+sed -i "s/${OLD_NAME}/${NEW_NAME}/g" scripts/dev/make-command.sh
+
+echo "✅ Проект переименован: $OLD_NAME → $NEW_NAME"
 ```
 
-#### Requirements Changes
+### Проверка
 
 ```bash
-# Add package to src/requirements.txt
-echo "django-extensions>=3.2.0" >> project/src/requirements.txt
-
-# Rebuild Django container
-docker compose -f docker-compose.local.yml build django
-docker compose -f docker-compose.local.yml up -d django
-```
-
-### Adding Django Apps
-
-```bash
-# Create new app
-docker compose -f docker-compose.local.yml exec django \
-  python manage.py startapp myapp
-
-# Don't forget to add to INSTALLED_APPS in settings.py
-```
-
-### Database Migrations
-
-```bash
-# Create migrations
-docker compose -f docker-compose.local.yml exec django \
-  python manage.py makemigrations
-
-# Apply migrations
-docker compose -f docker-compose.local.yml exec django \
-  python manage.py migrate
-
-# Show migration status
-docker compose -f docker-compose.local.yml exec django \
-  python manage.py showmigrations
+# Убедитесь что всё работает
+./scripts/dev/local-dev.sh
 ```
 
 ---
 
-## Testing
+## Локальная разработка
 
-### Running All Tests
+### Архитектура local environment
+
+```
+┌─────────────────┐
+│   Browser       │
+│ localhost:80    │
+└────────┬────────┘
+         │
+    ┌────▼─────┐
+    │  Nginx   │  (роутинг, статика)
+    └────┬─────┘
+         │
+    ┌────▼─────┐
+    │  Django  │  (runserver, hot-reload)
+    │  :8000   │
+    └────┬─────┘
+         │
+    ┌────▼─────┐
+    │PostgreSQL│
+    │  :5432   │
+    └──────────┘
+```
+
+### Управление окружением
+
+#### Запуск
 
 ```bash
-./project/scripts/dev/run-tests.sh
+cd project
+./scripts/dev/local-dev.sh
 ```
 
-### Running Specific Tests
+Скрипт автоматически:
+- ✅ Создаёт `.env.local` из шаблона
+- ✅ Собирает Docker images
+- ✅ Запускает все контейнеры
+- ✅ Применяет миграции
+- ✅ Создаёт superuser (admin/admin123)
+- ✅ Собирает статику
+
+#### Остановка
 
 ```bash
-# Run specific test file
-./project/scripts/dev/run-tests.sh tests/test_basic.py
+# Остановить (сохранить данные)
+docker compose -f docker-compose.local.yml down
 
-# Run specific test class
-./project/scripts/dev/run-tests.sh tests/test_basic.py::TestUserModel
-
-# Run specific test method
-./project/scripts/dev/run-tests.sh tests/test_basic.py::TestUserModel::test_create_user
-
-# Run tests by marker
-./project/scripts/dev/run-tests.sh -m unit       # Only unit tests
-./project/scripts/dev/run-tests.sh -m integration # Only integration tests
-```
-
-### Coverage Reports
-
-Coverage reports are generated automatically:
-- **Terminal**: Shows in console after test run
-- **HTML**: Open `src/htmlcov/index.html` in browser
-
-### Writing Tests
-
-Tests are located in `src/tests/`:
-
-```python
-import pytest
-from tests.factories import UserFactory
-
-@pytest.mark.unit
-@pytest.mark.django_db
-def test_user_creation():
-    """Test user creation using factory"""
-    user = UserFactory(username='testuser')
-    assert user.username == 'testuser'
-    assert user.is_active
-```
-
-**Test Markers:**
-- `@pytest.mark.unit` - Fast unit tests
-- `@pytest.mark.integration` - Integration tests
-- `@pytest.mark.slow` - Slow tests (can be skipped)
-
----
-
-## Database Management
-
-### Access Database Shell
-
-```bash
-./project/scripts/dev/db-shell.sh
-```
-
-### Common PostgreSQL Commands
-
-```sql
--- List all tables
-\dt
-
--- Describe table structure
-\d tablename
-
--- Show all users
-SELECT * FROM auth_user;
-
--- Quit
-\q
-```
-
-### Django Shell
-
-```bash
-./project/scripts/dev/django-shell.sh
-```
-
-```python
-# Inside Django shell
-from django.contrib.auth import get_user_model
-User = get_user_model()
-
-# Query users
-users = User.objects.all()
-admin = User.objects.get(username='admin')
-```
-
-### Reset Database
-
-```bash
-# Stop containers and remove volumes
+# Остановить и удалить volumes
 docker compose -f docker-compose.local.yml down -v
-
-# Restart (will recreate database)
-./project/scripts/dev/local-dev.sh
 ```
 
-### Load Test Data (Fixtures)
+#### Перезапуск после изменений
 
 ```bash
-# Create fixtures from current data
-docker compose -f docker-compose.local.yml exec django \
-  python manage.py dumpdata auth.User --indent 2 > src/fixtures/users.json
+# Код Django - hot reload, ничего не нужно
+# Изменения применяются автоматически
 
-# Load fixtures
-./project/scripts/dev/load-fixtures.sh
+# requirements.txt изменён - rebuild
+docker compose -f docker-compose.local.yml up --build -d django
+
+# docker-compose.local.yml изменён - recreate
+docker compose -f docker-compose.local.yml up -d --force-recreate
 ```
 
----
+### Helper Scripts
 
-## Debugging
-
-### View Logs
+#### 🐚 Database Shell
 
 ```bash
-# All services
+./scripts/dev/db-shell.sh
+
+# Внутри PostgreSQL:
+\l              # Список БД
+\dt             # Список таблиц
+\d table_name   # Структура таблицы
+SELECT * FROM auth_user;
+\q              # Выход
+```
+
+#### 🐍 Django Shell
+
+```bash
+./scripts/dev/django-shell.sh
+
+# Внутри Django shell:
+from django.contrib.auth.models import User
+User.objects.all()
+```
+
+#### 🧪 Run Tests
+
+```bash
+# Все тесты
+./scripts/dev/run-tests.sh
+
+# С покрытием
+./scripts/dev/run-tests.sh --cov
+
+# Verbose
+./scripts/dev/run-tests.sh -v
+
+# Конкретный файл
+./scripts/dev/run-tests.sh tests/test_basic.py
+
+# Конкретный тест
+./scripts/dev/run-tests.sh tests/test_basic.py::test_create_user -v
+```
+
+#### 📦 Load Fixtures
+
+```bash
+# Поместите fixtures в src/fixtures/
+# Например: src/fixtures/users.json
+
+./scripts/dev/load-fixtures.sh
+
+# Загружает все .json файлы из src/fixtures/
+```
+
+#### 🛠️ Create Management Command
+
+```bash
+./scripts/dev/make-command.sh import_users
+
+# Создаст: src/myapp/management/commands/import_users.py
+# Запустить: python manage.py import_users
+```
+
+### Логи и отладка
+
+#### Просмотр логов
+
+```bash
+# Все сервисы
 docker compose -f docker-compose.local.yml logs -f
 
-# Django only
+# Только Django
 docker compose -f docker-compose.local.yml logs -f django
 
-# PostgreSQL only
+# Только PostgreSQL
 docker compose -f docker-compose.local.yml logs -f postgres
 
-# Last 50 lines
-docker compose -f docker-compose.local.yml logs --tail=50 django
+# Последние 100 строк
+docker compose -f docker-compose.local.yml logs --tail=100 django
 ```
 
-### Django Debug Toolbar (Optional)
+#### Отладка с pdb
 
-Add to `requirements.txt`:
-```
-django-debug-toolbar>=4.2.0
-```
-
-Configure in `settings.py`:
-```python
-if DEBUG:
-    INSTALLED_APPS += ['debug_toolbar']
-    MIDDLEWARE += ['debug_toolbar.middleware.DebugToolbarMiddleware']
-    INTERNAL_IPS = ['127.0.0.1', 'localhost']
-```
-
-### Python Debugger (pdb)
-
-Add breakpoint in code:
+В коде добавьте:
 ```python
 import pdb; pdb.set_trace()
 ```
 
-Attach to container:
+Подключитесь к контейнеру:
 ```bash
 docker attach myapp-django-local
+# Нажмите Enter если prompt не появился
+```
+
+Отключиться: `Ctrl+P, Ctrl+Q` (не останавливает контейнер)
+
+### Изменение кода
+
+```
+project/src/
+├── myapp/              # Django проект
+│   ├── settings.py     # Настройки
+│   ├── urls.py         # URL routing
+│   └── wsgi.py
+├── your_app/           # Ваши приложения (создайте)
+├── tests/              # Тесты
+├── manage.py
+└── requirements.txt
+```
+
+#### Создание нового app
+
+```bash
+docker compose -f docker-compose.local.yml exec django \
+  python manage.py startapp your_app
+
+# Добавьте в settings.py INSTALLED_APPS:
+INSTALLED_APPS = [
+    ...
+    'your_app',
+]
+```
+
+#### Миграции
+
+```bash
+# Создать миграции
+docker compose -f docker-compose.local.yml exec django \
+  python manage.py makemigrations
+
+# Применить
+docker compose -f docker-compose.local.yml exec django \
+  python manage.py migrate
+
+# Посмотреть SQL
+docker compose -f docker-compose.local.yml exec django \
+  python manage.py sqlmigrate your_app 0001
 ```
 
 ---
 
-## Code Quality
+## Работа с базой данных
 
-### Linting
+### Подключение
 
-```bash
-# Check code formatting
-cd src
-black --check .
-
-# Auto-format code
-black .
-
-# Check import sorting
-isort --check-only .
-
-# Auto-sort imports
-isort .
-
-# Linting with flake8
-flake8 . --max-line-length=120 --exclude=migrations
+**Локальная разработка:**
+```
+Host: localhost
+Port: 5432
+Database: myapp
+Username: myapp
+Password: localdevpassword
 ```
 
-### Pre-commit Hooks (Recommended)
+**Инструменты:**
+- pgAdmin
+- DBeaver
+- TablePlus
+- psql (через db-shell.sh)
 
-Install pre-commit:
+### Backup и Restore
+
+#### Backup
+
 ```bash
-pip install pre-commit
+docker compose -f docker-compose.local.yml exec postgres \
+  pg_dump -U myapp myapp > backup.sql
 ```
 
-Create `.pre-commit-config.yaml`:
-```yaml
-repos:
-  - repo: https://github.com/psf/black
-    rev: 23.12.1
-    hooks:
-      - id: black
-        language_version: python3.12
-  
-  - repo: https://github.com/pycqa/isort
-    rev: 5.13.2
-    hooks:
-      - id: isort
-  
-  - repo: https://github.com/pycqa/flake8
-    rev: 7.0.0
-    hooks:
-      - id: flake8
-        args: ['--max-line-length=120']
+#### Restore
+
+```bash
+cat backup.sql | docker compose -f docker-compose.local.yml exec -T postgres \
+  psql -U myapp -d myapp
 ```
 
-Install hooks:
+### Сброс базы данных
+
 ```bash
-pre-commit install
+# ВНИМАНИЕ: Удаляет ВСЕ данные!
+docker compose -f docker-compose.local.yml down -v
+docker compose -f docker-compose.local.yml up -d postgres
+sleep 5
+docker compose -f docker-compose.local.yml up -d django
+
+# Или через SQL
+./scripts/dev/db-shell.sh
+DROP SCHEMA public CASCADE;
+CREATE SCHEMA public;
+\q
+
+# Затем применить миграции
+docker compose -f docker-compose.local.yml exec django \
+  python manage.py migrate
 ```
 
 ---
 
-## Helper Scripts Reference
+## Тестирование
 
-All scripts are in `project/scripts/dev/`:
+### Структура тестов
 
-| Script | Description |
-|--------|-------------|
-| `local-dev.sh` | Start local development environment |
-| `db-shell.sh` | Open PostgreSQL shell |
-| `django-shell.sh` | Open Django management shell |
-| `run-tests.sh` | Run pytest tests |
-| `load-fixtures.sh` | Load test fixtures |
-| `make-command.sh` | Create Django management command |
+```
+src/tests/
+├── __init__.py
+├── conftest.py           # Fixtures
+├── factories.py          # Factory Boy factories
+├── test_basic.py         # Базовые тесты
+└── your_app/
+    ├── test_models.py
+    ├── test_views.py
+    └── test_api.py
+```
+
+### Запуск тестов
+
+```bash
+# Все тесты
+./scripts/dev/run-tests.sh
+
+# С покрытием
+./scripts/dev/run-tests.sh --cov --cov-report=html
+open htmlcov/index.html
+
+# Только unit tests
+./scripts/dev/run-tests.sh -m unit
+
+# Только integration tests
+./scripts/dev/run-tests.sh -m integration
+
+# Быстрые тесты (без медленных)
+./scripts/dev/run-tests.sh -m "not slow"
+```
+
+### Написание тестов
+
+#### Использование fixtures (conftest.py)
+
+```python
+def test_user_creation(user):
+    """user fixture создан в conftest.py"""
+    assert user.username == "testuser"
+    assert user.email == "test@example.com"
+
+def test_api_call(api_client):
+    """api_client - DRF APIClient"""
+    response = api_client.get('/api/endpoint/')
+    assert response.status_code == 200
+```
+
+#### Использование factories
+
+```python
+from tests.factories import UserFactory
+
+def test_multiple_users():
+    users = UserFactory.create_batch(5)
+    assert User.objects.count() == 5
+    
+def test_admin_user():
+    admin = UserFactory(is_staff=True, is_superuser=True)
+    assert admin.is_superuser
+```
+
+#### Markers
+
+```python
+import pytest
+
+@pytest.mark.unit
+def test_model():
+    pass
+
+@pytest.mark.integration
+def test_api():
+    pass
+
+@pytest.mark.slow
+def test_heavy_operation():
+    pass
+```
+
+---
+
+## Развёртывание на AWS
+
+### Предварительные требования
+
+1. **AWS CLI** настроен
+2. **AWS Account** с правами:
+   - CloudFormation
+   - EC2
+   - S3
+   - ECR
+   - Secrets Manager
+   - IAM
+3. **EC2 Key Pair** создан
+
+### Первое развёртывание
+
+#### 1. Настройка AWS
+
+```bash
+# Настройте AWS CLI
+aws configure --profile mycompany
+# AWS Access Key ID: your-key
+# AWS Secret Access Key: your-secret
+# Default region: eu-west-1
+# Default output format: json
+
+# Проверка
+aws sts get-caller-identity --profile mycompany
+```
+
+#### 2. Создайте EC2 Key Pair
+
+```bash
+aws ec2 create-key-pair \
+  --key-name mycompany \
+  --profile mycompany \
+  --query 'KeyMaterial' \
+  --output text > mycompany.pem
+
+chmod 600 mycompany.pem
+```
+
+#### 3. Установите переменные окружения
+
+```bash
+export COMPANY_NAME=mycompany
+export ADMIN_EMAIL_DOMAIN=mycompany.com
+export AWS_PROFILE=mycompany
+export DJANGO_PROJECT_NAME=myapp  # Если не переименовывали
+```
+
+Или создайте файл `company-config.sh`:
+
+```bash
+cp company-config.example.sh company-config-mycompany.sh
+# Отредактируйте файл
+source company-config-mycompany.sh
+```
+
+#### 4. Deploy Infrastructure
+
+```bash
+cd project
+
+# Validate CloudFormation
+./scripts/validate.sh
+
+# Deploy stack
+./scripts/deploy.sh dev
+
+# Ждите ~5-10 минут
+# CloudFormation создаст: VPC, EC2, Security Groups, S3, ECR
+```
+
+#### 5. Создайте Secrets Manager secrets
+
+```bash
+# Django superuser credentials
+aws secretsmanager create-secret \
+  --name mycompany/dev/django/superuser \
+  --secret-string '{"username":"admin","email":"admin@mycompany.com","password":"YourSecurePassword123"}' \
+  --profile mycompany
+
+# Django SECRET_KEY
+aws secretsmanager create-secret \
+  --name mycompany/dev/django/secret_key \
+  --secret-string "$(python -c 'from django.core.management.utils import get_random_secret_key; print(get_random_secret_key())')" \
+  --profile mycompany
+
+# Database password
+aws secretsmanager create-secret \
+  --name mycompany/dev/db/password \
+  --secret-string "$(openssl rand -base64 32)" \
+  --profile mycompany
+```
+
+#### 6. Build и Push Docker Image
+
+```bash
+./scripts/build-image.sh dev
+
+# Скрипт:
+# - Логинится в ECR
+# - Собирает image
+# - Пушит в ECR
+```
+
+#### 7. Setup EC2 Instance
+
+```bash
+./scripts/setup-instance.sh dev
+
+# Скрипт:
+# - Подключается к EC2 через SSH
+# - Устанавливает Docker
+# - Логинится в ECR
+# - Pull image
+# - Создаёт .env файл
+# - Запускает docker-compose
+```
+
+#### 8. Проверка
+
+```bash
+# Получите IP адрес
+aws cloudformation describe-stacks \
+  --stack-name mycompany-dev \
+  --profile mycompany \
+  --query 'Stacks[0].Outputs[?OutputKey==`InstancePublicIP`].OutputValue' \
+  --output text
+
+# Откройте в браузере
+open http://<EC2_IP>/admin/
+
+# Получите пароль admin
+aws secretsmanager get-secret-value \
+  --secret-id mycompany/dev/django/superuser \
+  --profile mycompany \
+  --query SecretString \
+  --output text | jq -r '.password'
+```
+
+### Обновление приложения
+
+```bash
+# 1. Внесите изменения в код
+# 2. Commit и push в git
+
+# 3. Build новый image
+./scripts/build-image.sh dev
+
+# 4. Обновите на EC2
+ssh -i mycompany.pem ec2-user@<EC2_IP>
+
+cd /home/ec2-user/mycompany
+docker compose pull
+docker compose up -d
+
+# Проверьте логи
+docker compose logs -f django
+```
+
+### Удаление stack
+
+```bash
+# ВНИМАНИЕ: Удалит ВСЕ ресурсы!
+./scripts/delete.sh dev
+
+# Удалите также secrets вручную:
+aws secretsmanager delete-secret \
+  --secret-id mycompany/dev/django/superuser \
+  --force-delete-without-recovery \
+  --profile mycompany
+```
+
+---
+
+## Multi-tenant конфигурация
+
+Разверните изолированные окружения для разных клиентов/проектов.
+
+### Концепция
+
+Каждый клиент получает:
+- ✅ Отдельный CloudFormation stack
+- ✅ Отдельную EC2 instance
+- ✅ Отдельный S3 bucket
+- ✅ Отдельные secrets
+- ✅ Отдельный ECR repository
+
+### Пример: 2 клиента
+
+#### Клиент 1: Acme Corp
+
+```bash
+# config/company-config-acme.sh
+export COMPANY_NAME=acmecorp
+export ADMIN_EMAIL_DOMAIN=acme.com
+export AWS_PROFILE=acme
+
+source config/company-config-acme.sh
+
+# Deploy
+./scripts/deploy.sh dev
+./scripts/build-image.sh dev
+./scripts/setup-instance.sh dev
+
+# Ресурсы:
+# Stack: acmecorp-dev
+# S3: acmecorp-dev-media
+# ECR: acmecorp-dev
+# Secrets: acmecorp/dev/*
+```
+
+#### Клиент 2: Big Company
+
+```bash
+# config/company-config-bigco.sh
+export COMPANY_NAME=bigco
+export ADMIN_EMAIL_DOMAIN=bigcompany.com
+export AWS_PROFILE=bigco
+
+source config/company-config-bigco.sh
+
+# Deploy
+./scripts/deploy.sh dev
+./scripts/build-image.sh dev
+./scripts/setup-instance.sh dev
+
+# Ресурсы:
+# Stack: bigco-dev
+# S3: bigco-dev-media
+# ECR: bigco-dev
+# Secrets: bigco/dev/*
+```
+
+### Переменные конфигурации
+
+| Переменная | Описание | Пример |
+|-----------|----------|--------|
+| `COMPANY_NAME` | Префикс для всех ресурсов | `mycompany`, `client123` |
+| `ADMIN_EMAIL_DOMAIN` | Домен для admin email | `example.com` |
+| `AWS_PROFILE` | AWS CLI profile | `mycompany`, `default` |
+| `DJANGO_PROJECT_NAME` | Имя Django проекта | `myapp`, `myproject` |
+
+### Derived values (автоматические)
+
+- Stack name: `${COMPANY_NAME}-${ENV}`
+- S3 bucket: `${COMPANY_NAME}-${ENV}-media`
+- ECR repo: `${COMPANY_NAME}-${ENV}`
+- Secrets: `${COMPANY_NAME}/${ENV}/*`
+- EC2 key: `${COMPANY_NAME}`
+
+---
+
+## CI/CD
+
+### GitHub Actions Workflows
+
+#### 1. PR Checks (`.github/workflows/pr-checks.yml`)
+
+Запускается на каждый PR:
+- ✅ Linting (black, isort, flake8)
+- ✅ Tests (pytest)
+- ✅ CloudFormation validation
+
+#### 2. Deploy (`.github/workflows/deploy.yml`)
+
+Запускается на push в main/develop:
+1. **Lint** - code quality checks
+2. **Test** - run pytest with PostgreSQL
+3. **Build** - build и push Docker image в ECR
+4. **Deploy** - deploy на AWS
+
+### Настройка CI/CD
+
+#### 1. GitHub Secrets
+
+Добавьте в Settings → Secrets:
+
+```
+AWS_ACCESS_KEY_ID=your-key
+AWS_SECRET_ACCESS_KEY=your-secret
+AWS_REGION=eu-west-1
+COMPANY_NAME=mycompany
+```
+
+#### 2. Environments
+
+Создайте environments:
+- `dev`
+- `staging`
+- `prod`
+
+Для каждого добавьте:
+- `AWS_ACCOUNT_ID`
+- Approval rules (для prod)
+
+#### 3. Branch protection
+
+Main branch:
+- ✅ Require PR reviews
+- ✅ Require status checks (tests, lint)
+- ✅ No force push
+
+### Manual deploy trigger
+
+```bash
+# Через GitHub UI: Actions → Deploy → Run workflow
+# Или через gh CLI:
+gh workflow run deploy.yml -f environment=dev
+```
 
 ---
 
 ## Troubleshooting
 
-### Port Already in Use
+### Локальная разработка
+
+#### Порт 80 занят
 
 ```bash
-# Find process using port 80
+# Найдите процесс
 sudo lsof -i :80
 
-# Kill process
-sudo kill -9 <PID>
-
-# Or change port in docker-compose.local.yml:
-# ports:
-#   - "8080:80"
+# Измените порт в docker-compose.local.yml
+ports:
+  - "8080:80"  # Вместо 80:80
 ```
 
-### Container Won't Start
+#### Django не видит изменения кода
 
 ```bash
-# View detailed logs
-docker compose -f docker-compose.local.yml logs
+# Проверьте что volume монтирован
+docker compose -f docker-compose.local.yml exec django ls -la /app
 
-# Rebuild containers
-docker compose -f docker-compose.local.yml build --no-cache
-docker compose -f docker-compose.local.yml up
+# Перезапустите Django
+docker compose -f docker-compose.local.yml restart django
 ```
 
-### Database Connection Issues
+#### PostgreSQL connection refused
 
 ```bash
-# Check PostgreSQL is running
+# Проверьте что PostgreSQL запущен
 docker compose -f docker-compose.local.yml ps
 
-# Restart PostgreSQL
-docker compose -f docker-compose.local.yml restart postgres
-
-# Check database logs
+# Проверьте логи
 docker compose -f docker-compose.local.yml logs postgres
+
+# Пересоздайте контейнер
+docker compose -f docker-compose.local.yml up -d --force-recreate postgres
 ```
 
-### Docker Disk Space
+### AWS Deployment
+
+#### CloudFormation stack failed
 
 ```bash
-# Clean up unused Docker resources
-docker system prune -a
+# Посмотрите events
+aws cloudformation describe-stack-events \
+  --stack-name mycompany-dev \
+  --profile mycompany \
+  --max-items 20
 
-# Remove all volumes (⚠️  deletes data!)
-docker volume prune
+# Удалите failed stack
+./scripts/delete.sh dev
+
+# Попробуйте снова
+./scripts/deploy.sh dev
+```
+
+#### Can't SSH to EC2
+
+```bash
+# Проверьте Security Group
+aws ec2 describe-security-groups \
+  --filters "Name=tag:Name,Values=mycompany-dev-sg" \
+  --profile mycompany
+
+# Проверьте что используете правильный key
+chmod 600 mycompany.pem
+ssh -i mycompany.pem ec2-user@<IP> -v
+```
+
+#### Django admin login не работает
+
+```bash
+# Проверьте пароль в Secrets Manager
+aws secretsmanager get-secret-value \
+  --secret-id mycompany/dev/django/superuser \
+  --profile mycompany \
+  --query SecretString \
+  --output text
+
+# Если пароль содержит спецсимволы, смените на простой:
+aws secretsmanager update-secret \
+  --secret-id mycompany/dev/django/superuser \
+  --secret-string '{"username":"admin","email":"admin@example.com","password":"Admin123"}' \
+  --profile mycompany
+
+# Пересоздайте superuser на EC2
+ssh -i mycompany.pem ec2-user@<IP>
+cd /home/ec2-user/mycompany
+docker compose exec django python create_superuser.py
+```
+
+#### Docker image pull failed
+
+```bash
+# Проверьте что ECR repo существует
+aws ecr describe-repositories --profile mycompany
+
+# Проверьте что image push прошёл успешно
+aws ecr describe-images \
+  --repository-name mycompany-dev \
+  --profile mycompany
+
+# На EC2: проверьте ECR login
+aws ecr get-login-password | docker login --username AWS --password-stdin <ECR_URL>
 ```
 
 ---
 
-## Next Steps
+## Полезные команды
 
-- Read [DEPLOYMENT_CHECKLIST.md](DEPLOYMENT_CHECKLIST.md) for AWS deployment
-- See [MULTI_TENANT.md](MULTI_TENANT.md) for multi-tenant configuration
-- Check [README.md](README.md) for production deployment
+### Docker
+
+```bash
+# Статус всех контейнеров
+docker compose -f docker-compose.local.yml ps
+
+# Использование ресурсов
+docker stats
+
+# Очистить неиспользуемые images
+docker system prune -a
+
+# Посмотреть volumes
+docker volume ls
+
+# Удалить всё (ОСТОРОЖНО!)
+docker compose -f docker-compose.local.yml down -v
+docker system prune -a --volumes
+```
+
+### Django
+
+```bash
+# Shell
+docker compose -f docker-compose.local.yml exec django python manage.py shell
+
+# Create superuser
+docker compose -f docker-compose.local.yml exec django python manage.py createsuperuser
+
+# Collect static
+docker compose -f docker-compose.local.yml exec django python manage.py collectstatic
+
+# Check deployment
+docker compose -f docker-compose.local.yml exec django python manage.py check --deploy
+```
+
+### PostgreSQL
+
+```bash
+# Backup
+docker compose -f docker-compose.local.yml exec postgres \
+  pg_dump -U myapp myapp > backup_$(date +%Y%m%d).sql
+
+# List connections
+docker compose -f docker-compose.local.yml exec postgres \
+  psql -U myapp -c "SELECT * FROM pg_stat_activity;"
+```
 
 ---
 
-**Happy Coding! 🚀**
+## Дополнительные ресурсы
+
+- **Django Documentation:** https://docs.djangoproject.com/
+- **Docker Compose:** https://docs.docker.com/compose/
+- **AWS CloudFormation:** https://docs.aws.amazon.com/cloudformation/
+- **PostgreSQL:** https://www.postgresql.org/docs/
+
+---
+
+**Вопросы?** Создайте Issue на GitHub!

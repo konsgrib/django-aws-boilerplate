@@ -1,211 +1,170 @@
 # Django AWS Boilerplate
 
-Production-ready Django boilerplate for AWS deployment with Docker, CloudFormation, and CI/CD.
+**Production-ready Django boilerplate** для быстрого старта проектов с развёртыванием на AWS.
 
-## ✨ Features
+## 🎯 Что это?
 
-- 🐳 **Docker-based** - Nginx + Django + PostgreSQL
-- ☁️ **AWS Infrastructure** - CloudFormation templates for EC2, S3, ECR, Secrets Manager
-- 🏢 **Multi-tenant Ready** - Deploy isolated stacks for multiple companies/clients
-- 🔒 **Security First** - AWS Secrets Manager, SSM Parameter Store, IAM roles
-- 🚀 **CI/CD Pipeline** - GitHub Actions with automated testing and deployment
-- 🧪 **Testing Setup** - Pytest, coverage, factories, fixtures
-- 💻 **Local Development** - Full Docker Compose environment without AWS dependencies
-- 📚 **Comprehensive Documentation** - Setup, deployment, development, contributing guides
+Готовый к использованию шаблон Django-приложения с полной инфраструктурой для разработки и развёртывания на AWS. Включает всё необходимое для старта нового проекта: от локальной разработки до production deployment.
 
-## 🚀 Quick Start
+## ✨ Возможности
 
-### For New Projects
+### Локальная разработка
+- 🐳 **Docker Compose** - полная среда разработки (PostgreSQL, Django, Nginx)
+- 🔄 **Hot reload** - автоматическая перезагрузка при изменении кода
+- 🧪 **Pytest** - настроенное тестирование с покрытием
+- 🛠️ **Helper scripts** - скрипты для частых задач (миграции, shell, тесты)
 
-```bash
-# 1. Clone this boilerplate
-git clone https://github.com/YOUR_USERNAME/django-aws-boilerplate.git my-project
-cd my-project
-
-# 2. Start local development
-./project/scripts/dev/local-dev.sh
-
-# 3. Access application
-# App: http://localhost
-# Admin: http://localhost/admin/ (admin/admin123)
-```
-
-### For AWS Deployment
-
-```bash
-# 1. Configure AWS CLI
-aws configure --profile mycompany
-
-# 2. Set company name
-export COMPANY_NAME=mycompany
-export ADMIN_EMAIL_DOMAIN=mycompany.com
-
-# 3. Create EC2 key pair
-aws ec2 create-key-pair --key-name mycompany \
-  --query 'KeyMaterial' --output text > mycompany.pem
-chmod 600 mycompany.pem
-
-# 4. Deploy infrastructure
-cd project
-./scripts/deploy.sh dev
-./scripts/build-image.sh dev
-./scripts/setup-instance.sh dev
-```
-
-## 📚 Documentation
-
-- **[DEVELOPMENT.md](project/DEVELOPMENT.md)** - Local development setup and workflows
-- **[DEPLOYMENT_CHECKLIST.md](project/DEPLOYMENT_CHECKLIST.md)** - Step-by-step deployment guide  
-- **[MULTI_TENANT.md](project/MULTI_TENANT.md)** - Multi-tenant configuration
-- **[DJANGO_ADMIN.md](project/DJANGO_ADMIN.md)** - Admin credentials management
-- **[CONTRIBUTING.md](project/CONTRIBUTING.md)** - Contributing guidelines
-
-## 🏗️ Architecture
-
-```
-┌─────────────┐
-│   Browser   │
-└──────┬──────┘
-       │
-┌──────▼──────┐
-│   Nginx     │ (reverse proxy)
-└──────┬──────┘
-       │
-┌──────▼──────┐
-│   Django    │ (Gunicorn)
-│  + Gunicorn │
-└──────┬──────┘
-       │
-┌──────▼──────┐
-│ PostgreSQL  │
-└─────────────┘
-```
-
-**AWS Infrastructure:**
-- **EC2** (t3.micro) - Application server
-- **S3** - Configuration files and media storage
-- **ECR** - Docker image registry
-- **Secrets Manager** - Secure credential storage
-- **SSM Parameter Store** - Configuration management
-- **CloudFormation** - Infrastructure as Code
-
-## 🛠️ Technology Stack
-
-- **Backend**: Django 5.2, Python 3.14
-- **Database**: PostgreSQL 16
-- **Server**: Gunicorn + Nginx
-- **Container**: Docker + Docker Compose
-- **Cloud**: AWS (EC2, S3, ECR, Secrets Manager, SSM)
-- **IaC**: AWS CloudFormation
-- **CI/CD**: GitHub Actions
-- **Testing**: Pytest, pytest-django, factory-boy
-
-## 📦 What's Included
-
-### Local Development
-- `docker-compose.local.yml` - No AWS dependencies
-- Helper scripts for Django/DB shells
-- Auto-reload development server
-- Pytest configuration with coverage
-
-### AWS Deployment
-- CloudFormation templates
-- Deployment automation scripts
-- Multi-tenant support
-- Secrets management
-- Automated backups configuration
+### AWS Production
+- ☁️ **CloudFormation** - инфраструктура как код (EC2, S3, ECR, Secrets Manager)
+- 🔒 **Secrets Manager** - безопасное хранение credentials
+- 📦 **ECR** - приватный Docker registry
+- 🏢 **Multi-tenant** - изоляция ресурсов для разных клиентов/проектов
 
 ### CI/CD
-- Automated testing on PR
-- Code quality checks (black, flake8, isort)
-- Automated deployment to dev/staging/prod
-- Health check verification
+- 🚀 **GitHub Actions** - автоматический deploy на push
+- ✅ **Automated testing** - запуск тестов на каждый PR
+- 🔍 **Code quality** - линтеры (black, isort, flake8)
 
-### Testing
-- Unit test examples
-- Integration test examples
-- Test factories with faker
-- Coverage configuration
+## 🚀 Быстрый старт
 
-## 🔧 Customization
-
-### 1. Rename Project
+### 1. Клонируйте репозиторий
 
 ```bash
-# Update Django project name
-mv project/src/myapp project/src/YOUR_PROJECT_NAME
-
-# Update in project/scripts/includes.sh
-DJANGO_PROJECT_NAME=YOUR_PROJECT_NAME
-
-# Update settings path in project/src/manage.py
-os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'YOUR_PROJECT_NAME.settings')
+git clone https://github.com/YOUR_USERNAME/django-aws-boilerplate.git my-project
+cd my-project
 ```
 
-### 2. Add Your Apps
+### 2. Переименуйте проект (опционально)
+
+По умолчанию Django проект называется `myapp`. Чтобы переименовать:
 
 ```bash
-# Inside Django container
-docker compose -f docker-compose.local.yml exec django \
-  python manage.py startapp your_app
+cd project/src
+mv myapp myproject
 
-# Add to INSTALLED_APPS in settings.py
+# Обновите импорты
+find . -type f -name "*.py" -exec sed -i 's/myapp\./myproject./g' {} +
+
+# Обновите конфиги
+cd ../..
+sed -i 's/myapp/myproject/g' project/src/Dockerfile
+sed -i 's/myapp/myproject/g' project/src/pytest.ini
+sed -i 's/myapp/myproject/g' project/docker-compose*.yml
 ```
 
-### 3. Configure for Your Company
+### 3. Запустите локальное окружение
 
 ```bash
-# Set environment variables
-export COMPANY_NAME=yourcompany
-export ADMIN_EMAIL_DOMAIN=yourcompany.com
-export AWS_PROFILE=yourcompany
-
-# Or create company-config.sh
-cp project/company-config.example.sh company-config.sh
-# Edit company-config.sh
-source company-config.sh
+cd project
+./scripts/dev/local-dev.sh
 ```
 
-## 🧪 Running Tests
+Приложение будет доступно:
+- **Веб-интерфейс:** http://localhost
+- **Django Admin:** http://localhost/admin/ (admin/admin123)
+
+### 4. Начните разработку
+
+Подробная инструкция в [DEVELOPMENT.md](project/DEVELOPMENT.md)
+
+## 📚 Документация
+
+**[DEVELOPMENT.md](project/DEVELOPMENT.md)** - Полное руководство:
+- Локальная разработка с Docker Compose
+- Работа с базой данных
+- Тестирование
+- Развёртывание на AWS
+- Multi-tenant конфигурация
+- Все helper scripts
+
+## 🛠️ Технологии
+
+- **Backend:** Django 5.2, Python 3.14
+- **Database:** PostgreSQL 16
+- **Web Server:** Nginx (Alpine)
+- **Containerization:** Docker, Docker Compose
+- **Infrastructure:** AWS CloudFormation
+- **CI/CD:** GitHub Actions
+- **Testing:** Pytest, Coverage
+- **Code Quality:** Black, isort, flake8
+
+## 📦 Что включено
+
+### Скрипты для разработки
+```bash
+./scripts/dev/local-dev.sh      # Запустить локальное окружение
+./scripts/dev/db-shell.sh       # PostgreSQL shell
+./scripts/dev/django-shell.sh   # Django shell
+./scripts/dev/run-tests.sh      # Запустить тесты
+./scripts/dev/load-fixtures.sh  # Загрузить fixtures
+./scripts/dev/make-command.sh   # Создать management command
+```
+
+### Скрипты для deployment
+```bash
+./scripts/deploy.sh dev         # Deploy infrastructure
+./scripts/build-image.sh dev    # Build и push Docker image
+./scripts/setup-instance.sh dev # Setup EC2 instance
+./scripts/validate.sh           # Validate CloudFormation
+./scripts/delete.sh dev         # Delete stack
+```
+
+## 🔧 Конфигурация
+
+### Переменные окружения
 
 ```bash
-# All tests
-./project/scripts/dev/run-tests.sh
-
-# Specific tests
-./project/scripts/dev/run-tests.sh tests/test_myfeature.py
-
-# With coverage
-./project/scripts/dev/run-tests.sh --cov
+export COMPANY_NAME=mycompany           # Префикс для AWS ресурсов
+export DJANGO_PROJECT_NAME=myapp        # Имя Django проекта
+export ADMIN_EMAIL_DOMAIN=example.com   # Домен для admin email
 ```
 
-## 📝 Project Structure
+### Multi-tenant deployment
+
+```bash
+# Клиент 1
+export COMPANY_NAME=client1
+./scripts/deploy.sh dev
+
+# Клиент 2
+export COMPANY_NAME=client2
+./scripts/deploy.sh dev
+```
+
+## 📄 Структура проекта
 
 ```
 .
+├── README.md                   # Этот файл
 ├── project/
-│   ├── src/                    # Django application
-│   ├── config/                 # nginx, postgres configs
-│   ├── scripts/                # Deployment and dev scripts
-│   ├── cloudformation/         # AWS CloudFormation templates
-│   ├── .github/workflows/      # CI/CD pipelines
-│   └── docker-compose.local.yml
-├── .gitignore
-└── README.md
+│   ├── DEVELOPMENT.md         # Полная документация
+│   ├── cloudformation/        # AWS инфраструктура
+│   ├── config/               # Конфигурация сервисов
+│   ├── scripts/              # Все скрипты
+│   ├── src/                 # Django приложение
+│   │   ├── myapp/           # Django проект
+│   │   ├── tests/
+│   │   └── requirements.txt
+│   ├── docker-compose.yml        # Production
+│   └── docker-compose.local.yml  # Local development
+└── .github/workflows/        # CI/CD
 ```
 
-## 🤝 Contributing
+## 💡 Использование
 
-See [CONTRIBUTING.md](project/CONTRIBUTING.md) for development guidelines.
+Этот boilerplate идеален для:
+- 🚀 Быстрого старта Django проектов
+- 🏢 B2B SaaS приложений с multi-tenant архитектурой
+- 📱 API backends
+- 🌐 Web приложений с AWS hosting
+- 🔧 Проектов с полной CI/CD автоматизацией
 
-## 📄 License
+## 📝 License
 
-This boilerplate is open source. Feel free to use it for your projects.
-
-## 🙏 Credits
-
-Built with Django, AWS, Docker, and love ❤️
+MIT License - используйте свободно для коммерческих и некоммерческих проектов.
 
 ---
 
-**Ready to build your next Django project on AWS? Let's go! 🚀**
+**Готово к использованию!** Просто клонируйте и начинайте разработку! 🎉
+
+Полная документация → [DEVELOPMENT.md](project/DEVELOPMENT.md)
