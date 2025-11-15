@@ -115,11 +115,40 @@ sed -i "s/${OLD_NAME}/${NEW_NAME}/g" scripts/dev/make-command.sh
 echo "✅ Проект переименован: $OLD_NAME → $NEW_NAME"
 ```
 
-### Проверка
+### Проверка и перезапуск
+
+После переименования **обязательно** пересоздайте все контейнеры и volumes:
 
 ```bash
-# Убедитесь что всё работает
-./scripts/dev/local-dev.sh
+# ВАЖНО: Остановите и удалите все контейнеры и volumes
+docker compose -f docker-compose.local.yml down -v
+
+# Пересоберите образы с новым именем проекта
+docker compose -f docker-compose.local.yml build
+
+# Запустите заново
+docker compose -f docker-compose.local.yml up -d
+
+# Проверьте статус
+docker compose -f docker-compose.local.yml ps
+
+# Проверьте логи Django
+docker compose -f docker-compose.local.yml logs -f django
+```
+
+**Важно:** Флаг `-v` удаляет volumes с данными базы. Это необходимо, так как старая база PostgreSQL может содержать несовместимые данные. После перезапуска Django автоматически:
+- Применит все миграции
+- Создаст superuser (admin/admin123)
+- Соберёт статические файлы
+
+### Проверка в браузере
+
+```bash
+# Откройте admin панель
+open http://localhost/admin/
+
+# Логин: admin
+# Пароль: admin123
 ```
 
 ---
@@ -825,6 +854,50 @@ docker compose -f docker-compose.local.yml logs postgres
 
 # Пересоздайте контейнер
 docker compose -f docker-compose.local.yml up -d --force-recreate postgres
+```
+
+#### 502 Bad Gateway от nginx
+
+Ошибка означает, что nginx не может связаться с Django backend. Возможные причины:
+
+**1. Django контейнер не запущен**
+
+```bash
+# Проверьте статус
+docker compose -f docker-compose.local.yml ps
+
+# Если Django отсутствует, проверьте логи
+docker compose -f docker-compose.local.yml logs django
+```
+
+**2. Ошибка аутентификации PostgreSQL**
+
+Если видите `password authentication failed for user`, это означает несоответствие credentials в базе данных:
+
+```bash
+# РЕШЕНИЕ: Пересоздайте всё с чистыми volumes
+docker compose -f docker-compose.local.yml down -v
+docker compose -f docker-compose.local.yml up -d
+
+# Подождите 10-15 секунд для инициализации
+sleep 15
+
+# Проверьте что Django запустился
+docker compose -f docker-compose.local.yml logs django --tail=20
+```
+
+**3. Проверка работоспособности**
+
+```bash
+# Проверьте что nginx видит Django
+curl -I http://localhost/admin/
+
+# Должны увидеть:
+# HTTP/1.1 302 Found  (редирект на login - это нормально)
+# Или HTTP/1.1 200 OK
+
+# НЕ должны видеть:
+# HTTP/1.1 502 Bad Gateway
 ```
 
 ### AWS Deployment
