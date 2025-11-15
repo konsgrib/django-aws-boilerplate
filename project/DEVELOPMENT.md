@@ -23,7 +23,24 @@
 - **Docker** 20.10+
 - **Docker Compose** v2.0+
 - **Git**
+- **GitHub CLI** (опционально, для создания репозитория из командной строки)
 - **AWS CLI** (для deployment)
+
+### Установка GitHub CLI (опционально)
+
+```bash
+# Ubuntu/Debian
+sudo apt install gh
+
+# macOS
+brew install gh
+
+# Или через snap
+sudo snap install gh
+
+# Авторизация
+gh auth login
+```
 
 ### Первый запуск
 
@@ -32,11 +49,30 @@
 git clone https://github.com/YOUR_USERNAME/django-aws-boilerplate.git
 cd django-aws-boilerplate
 
-# 2. Запустите локальную среду
+# 2. Настройте свой репозиторий (важно!)
+# Удалите связь с исходным boilerplate репозиторием
+rm -rf .git
+
+# Инициализируйте новый git репозиторий
+git init
+git add .
+git commit -m "Initial commit from django-aws-boilerplate"
+
+# Вариант A: Создать репозиторий через GitHub CLI (рекомендуется)
+gh repo create YOUR_PROJECT_NAME --private --source=. --remote=origin --push
+
+# Вариант B: Вручную создать на GitHub и связать
+# 1. Создайте репозиторий на https://github.com/new
+# 2. Затем выполните:
+git remote add origin https://github.com/YOUR_USERNAME/YOUR_PROJECT_NAME.git
+git branch -M main
+git push -u origin main
+
+# 3. Запустите локальную среду
 cd project
 ./scripts/dev/local-dev.sh
 
-# 3. Откройте в браузере
+# 4. Откройте в браузере
 open http://localhost/admin/
 # Логин: admin
 # Пароль: admin123
