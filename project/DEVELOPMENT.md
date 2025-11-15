@@ -214,7 +214,7 @@ project/
 ├── config/                 # Configuration files
 │   ├── nginx/              # Nginx configs
 │   │   ├── nginx.conf      # Main nginx config
-│   │   └── autoakademia.conf # Site config
+│   │   └── app.conf # Site config
 │   └── postgres/           # PostgreSQL init scripts
 │       └── 01-init.sh      # DB initialization
 ├── scripts/

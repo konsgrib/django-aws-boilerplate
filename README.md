@@ -133,7 +133,7 @@ cd project
 
 ```bash
 # Update Django project name
-mv project/src/autoakademia project/src/YOUR_PROJECT_NAME
+mv project/src/myapp project/src/YOUR_PROJECT_NAME
 
 # Update in project/scripts/includes.sh
 DJANGO_PROJECT_NAME=YOUR_PROJECT_NAME

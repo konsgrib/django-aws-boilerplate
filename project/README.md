@@ -412,8 +412,8 @@ aws s3 rm s3://${COMPANY_NAME}-dev-media --recursive
 
 Каждое окружение создает отдельные ресурсы:
 - Stack: `mycompany-{env}`
-- S3: `autoakademia-{env}-media`
-- Секреты: `autoakademia/{env}/*`
+- S3: `mycompany-{env}-media`
+- Секреты: `mycompany/{env}/*`
 
 ## Полезные команды
 

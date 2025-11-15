@@ -65,7 +65,7 @@ Lines 20, 35, 43, 47 - change default values from `mycompany` to your company na
 #### `project/company-config.example.sh`
 Update all example values (lines 20-25).
 
-#### `project/config/nginx/autoakademia.conf`
+#### `project/config/nginx/app.conf`
 Rename file to match your project name.
 
 ### 4. Documentation

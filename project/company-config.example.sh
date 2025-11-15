@@ -32,7 +32,7 @@ export AWS_PROFILE=mycompany
 #   - Company/client identifier (lowercase, no spaces, no special characters)
 #   - Used as prefix for all AWS resources (S3 buckets, Secrets Manager, SSM parameters)
 #   - Used in EC2 key pair name
-#   - Example: autoakademia, mycompany, client123
+#   - Example: mycompany, acmecorp, client123
 #
 # PROJECT_NAME
 #   - Project name for tagging resources
@@ -41,7 +41,7 @@ export AWS_PROFILE=mycompany
 # APP_NAME
 #   - Application name used in EC2 paths and docker container names
 #   - Usually same as COMPANY_NAME
-#   - Example: autoakademia, myapp
+#   - Example: myapp, myproject
 #
 # DJANGO_PROJECT_NAME
 #   - Django project folder name from src/ directory
@@ -52,12 +52,12 @@ export AWS_PROFILE=mycompany
 # ADMIN_EMAIL_DOMAIN
 #   - Domain for Django admin superuser email
 #   - Used in AWS Secrets Manager for superuser creation
-#   - Example: autoakademia.com, company.com
+#   - Example: example.com, company.com
 #
 # AWS_PROFILE
 #   - AWS CLI profile name with credentials
 #   - Must be configured in ~/.aws/credentials
-#   - Example: autoakademia, default, production
+#   - Example: mycompany, default, production
 #
 # ========================================
 # AWS Resources Created (with COMPANY_NAME prefix)
